@@ -9,6 +9,9 @@
   One standalone file. No server, no build step. Open it in Chrome or Edge.
 
   WHERE THE DATA LIVES
+    Data > "Sync to GitHub" saves strand-data.json to a private repo through the
+    GitHub API, with a fine-grained token kept in this browser only. Every save is
+    a commit. This is the way to use Strand on more than one device.
     Data > "Link my Strand folder" picks a folder. Strand then reads and writes
     strand-data.json in that folder after every change. Until a folder is linked,
     data is kept in this browser's storage. Data > Export / Import is the backup.
@@ -37,6 +40,9 @@
   GENES: every week that closes stable earns one permanent pick from three offered
   traits. Picks are stored under "traits" in the data file; the catalogue is in the
   settings block.
+
+  WALKTHROUGH: the Walkthrough button plays a spoken guide using the browser's own
+  voices (Edge's "Natural" voices sound best). Its script reads the live settings.
 
   FUTURE MODULES: the data file has a "modules" block, and every log entry and
   ledger row carries a "module" name. "nutrition" is reserved and not built.
@@ -259,6 +265,47 @@ h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;letter-spacing:.01e
 .genome b{font:500 14px var(--display);color:var(--gold)}
 .genome span{grid-column:1/3;font-size:12.5px;color:var(--dim)}
 
+#spot{position:fixed;left:0;top:0;z-index:26;pointer-events:none;border-radius:16px;border:2px solid var(--gold);box-shadow:0 0 0 9999px rgba(2,10,16,.5),0 0 30px rgba(255,233,166,.45);opacity:0;transition:opacity .3s,transform .45s cubic-bezier(.2,.8,.2,1),width .45s cubic-bezier(.2,.8,.2,1),height .45s cubic-bezier(.2,.8,.2,1)}
+#spot.on{opacity:1}
+#guide{position:fixed;left:50%;bottom:20px;z-index:27;width:min(620px,94vw);transform:translate(-50%,140%);transition:transform .38s cubic-bezier(.2,.8,.2,1),bottom .45s cubic-bezier(.2,.8,.2,1);background:rgba(5,24,34,.97);border:1px solid rgba(255,233,166,.45);border-radius:18px;padding:13px 16px 12px;box-shadow:0 24px 70px rgba(0,0,0,.6)}
+#guide.on{transform:translate(-50%,0)}
+#guide.up{bottom:calc(100vh - 20px - var(--gh,210px))}
+#guide.up:not(.on){transform:translate(-50%,-140%)}
+.gtop{display:flex;align-items:center;gap:10px}
+#gChap{flex:1;font:600 14px var(--display);color:var(--gold);letter-spacing:.02em}
+.gtxt{font:500 13px var(--display);color:var(--dim);padding:3px 10px;border:1px solid var(--line2);border-radius:99px}
+.gtxt:hover{color:var(--ink);border-color:var(--gold)}
+.gx{width:28px;height:28px;border-radius:50%;color:var(--dim);font-size:14px}
+.gx:hover{color:var(--ink);background:rgba(255,255,255,.07)}
+#gCap{margin:8px 0 10px;font:400 17px/1.45 var(--body);color:var(--ink);min-height:50px}
+#gBar{display:flex;gap:4px;margin-bottom:11px}
+#gBar button{flex:1;height:5px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;position:relative}
+#gBar button:hover{background:rgba(255,255,255,.2)}
+#gBar i{position:absolute;left:0;top:0;bottom:0;background:var(--gold);transition:width .4s}
+.gctl{display:flex;align-items:center;gap:8px}
+.gctl button{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--ink);border:1px solid var(--line2)}
+.gctl button:hover{border-color:var(--gold)}
+.gctl svg{width:15px;height:15px;fill:currentColor}
+.gctl .gplay{width:44px;height:44px;background:var(--gold);color:#2b2204;border-color:var(--gold)}
+.gctl .gplay svg{width:18px;height:18px}
+.gctl select{margin-left:auto;max-width:230px;font-size:13px;padding:5px 8px}
+.gctl #gRate{margin-left:0;width:78px}
+#gList{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:10px 0 2px}
+#gList[hidden]{display:none}
+#gList button{text-align:left;padding:6px 9px;border-radius:9px;font:500 13.5px var(--display);color:var(--dim);display:flex;gap:9px;align-items:center}
+#gList button span{width:20px;height:20px;border-radius:50%;border:1px solid var(--line2);display:grid;place-items:center;font-size:11.5px;flex:none}
+#gList button:hover{background:rgba(255,255,255,.05);color:var(--ink)}
+#gList button[aria-current="true"]{color:var(--gold)}
+#gList button[aria-current="true"] span{background:var(--gold);color:#2b2204;border-color:var(--gold)}
+@media (max-width:640px){.gctl select{max-width:120px}#gList{grid-template-columns:1fr}}
+
+.steps{color:var(--dim);font-size:13.5px;padding-left:20px;margin:6px 0 12px;max-width:68ch}
+.steps li{margin-bottom:6px}
+#drawer a{color:var(--aqua)}
+#drawer a.btn{color:var(--ink);text-decoration:none;display:inline-block}
+.ghf input{text-align:left!important;font-family:var(--body)!important}
+.grid2.ghf{grid-template-columns:170px minmax(0,1fr);max-width:560px}
+
 /* ---------- drawer ---------- */
 #scrim{position:fixed;inset:0;background:rgba(2,10,16,.6);backdrop-filter:blur(3px);z-index:20;opacity:0;pointer-events:none;transition:opacity .25s}
 #scrim.on{opacity:1;pointer-events:auto}
@@ -370,6 +417,7 @@ textarea{width:100%;min-height:150px;font-family:"Cascadia Mono",Consolas,monosp
 <div class="app" id="app">
   <div class="samplebar" id="samplebar" hidden>
     <span><b>Sample data.</b> These entries are fake, made up so you can try everything before your first real day.</span>
+    <button id="gStart">Play the walkthrough</button>
     <button id="clearSample">Clear the sample and start my strand</button>
   </div>
 
@@ -394,6 +442,7 @@ textarea{width:100%;min-height:150px;font-family:"Cascadia Mono",Consolas,monosp
         <div class="splitrow"><div class="split" id="split"><i></i><u></u></div><span class="kb"><b id="bondedN">0</b> bonded</span><span class="kl"><b id="looseN">0</b> loose</span></div>
       </div>
       <nav class="nav" aria-label="Panels">
+        <button id="navGuide" title="A spoken walkthrough of the rules">Walkthrough</button>
         <button data-open="vault" id="navVault">Vault</button>
         <button data-open="ledger">Ledger</button>
         <button data-open="settings">Settings</button>
@@ -430,6 +479,20 @@ textarea{width:100%;min-height:150px;font-family:"Cascadia Mono",Consolas,monosp
 </aside>
 <div id="cine"></div>
 <div id="modal"><div class="box" id="modalBox"></div></div>
+<div id="spot" aria-hidden="true"></div>
+<section id="guide" aria-label="Walkthrough">
+  <div class="gtop"><span id="gChap"></span><button data-g="list" class="gtxt">Chapters</button><button data-g="close" class="gx" aria-label="Close the walkthrough">✕</button></div>
+  <div id="gList" hidden></div>
+  <p id="gCap" aria-live="polite"></p>
+  <div id="gBar"></div>
+  <div class="gctl">
+    <button data-g="prev" aria-label="Previous chapter"><svg viewBox="0 0 20 20"><path d="M14 4L6 10l8 6z"/><rect x="4" y="4" width="2" height="12"/></svg></button>
+    <button data-g="play" id="gPlay" class="gplay"></button>
+    <button data-g="next" aria-label="Next chapter"><svg viewBox="0 0 20 20"><path d="M6 4l8 6-8 6z"/><rect x="14" y="4" width="2" height="12"/></svg></button>
+    <select id="gVoice" aria-label="Voice"></select>
+    <select id="gRate" aria-label="Speed"><option value="0.85">0.85×</option><option value="1">1×</option><option value="1.15">1.15×</option><option value="1.3">1.3×</option></select>
+  </div>
+</section>
 <div id="flash"></div>
 <canvas id="fx"></canvas>
 <div id="toasts" aria-live="polite"></div>
@@ -1504,12 +1567,13 @@ var Store = {
     }).catch(function (e) { if (e && e.name !== 'NotFoundError') toast('Could not read ' + DATA_FILE + ': ' + esc(e.message), 'bad'); return false; });
   },
   text: function () { return JSON.stringify(st.data, null, 2); },
-  save: function () {
-    st.data.meta.updatedAt = new Date().toISOString();
+  save: function (quiet) {
+    if (!quiet) st.data.meta.updatedAt = new Date().toISOString();
     st.data.derived = E.snapshot(st.D);
     var txt = Store.text();
     try { localStorage.setItem(LS_KEY, txt); } catch (e) {}
     if (st.dirState === 'linked') Store.queue(txt);
+    if (!quiet) GH.schedule();
     syncStatus();
   },
   queue: function (txt) {
@@ -1545,6 +1609,155 @@ var Store = {
     }).catch(function (e) { toast('Could not reconnect: ' + esc(e.message), 'bad'); });
   },
   unlink: function () { st.dir = null; st.dirState = 'none'; st.mediaCache = {}; IDB.del('dir'); syncStatus(); if (st.drawer) renderDrawer(); }
+};
+
+
+/* ============================== GitHub sync ============================== */
+/* Saves strand-data.json to a repo you own (keep it private) through the GitHub
+   API. The token stays in this browser's storage only: never in the page,
+   never in the data file. Every save is a commit, so the repo keeps history. */
+var GH = {
+  cfg: null, sha: null, base: null, timer: null, busy: false, again: false, state: 'off', err: '', last: null, edit: false, lastCheck: 0, pendingPush: false, pendingConflict: null,
+  K: { cfg: 'strand.gh', sha: 'strand.gh.sha', dirty: 'strand.gh.dirty', base: 'strand.gh.base' },
+  ls: function (k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } },
+  load: function () { try { GH.cfg = JSON.parse(GH.ls(GH.K.cfg) || 'null'); } catch (e) { GH.cfg = null; } GH.sha = GH.ls(GH.K.sha) || null; var b = GH.ls(GH.K.base); GH.base = b ? +b : null; return GH.on(); },
+  on: function () { return !!(GH.cfg && GH.cfg.token && GH.cfg.owner && GH.cfg.repo); },
+  dirty: function (v) { if (v === undefined) return GH.ls(GH.K.dirty) === '1'; GH.ls(GH.K.dirty, v ? '1' : '0'); },
+  setSha: function (sha) { GH.sha = sha; GH.ls(GH.K.sha, sha || null); },
+  setBase: function (n) { GH.base = n; GH.ls(GH.K.base, n == null ? null : String(n)); },
+  api: function (path, opt) {
+    opt = opt || {};
+    var h = { Authorization: 'Bearer ' + GH.cfg.token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+    if (opt.body) h['Content-Type'] = 'application/json';
+    return fetch('https://api.github.com' + path, { method: opt.method || 'GET', cache: 'no-store', headers: h, body: opt.body ? JSON.stringify(opt.body) : undefined })
+      .then(function (r) {
+        if (r.status === 404) return null;
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (!r.ok) { var e = new Error(r.status === 401 ? 'GitHub rejected the token. It may have expired or been revoked.' : r.status === 403 ? 'The token is not allowed to do that. It needs Contents: Read and write on this repo.' : (j.message || 'GitHub answered ' + r.status)); e.status = r.status; throw e; }
+          return j;
+        });
+      }, function () { var e = new Error('Could not reach GitHub. Check the connection; your changes are kept here and will be saved when it is back.'); e.status = 0; throw e; });
+  },
+  repoPath: function () { return '/repos/' + encodeURIComponent(GH.cfg.owner) + '/' + encodeURIComponent(GH.cfg.repo); },
+  filePath: function () { return GH.repoPath() + '/contents/' + GH.cfg.path.split('/').map(encodeURIComponent).join('/'); },
+  b64enc: function (txt) { var b = new TextEncoder().encode(txt), out = ''; for (var i = 0; i < b.length; i += 0x8000) out += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(out); },
+  b64dec: function (b64) { var s = atob(b64.replace(/\s/g, '')), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return new TextDecoder().decode(a); },
+  fetchRemote: function () {
+    var ref = GH.cfg.branch ? '?ref=' + encodeURIComponent(GH.cfg.branch) : '';
+    return GH.api(GH.filePath() + ref).then(function (j) {
+      if (!j) return null;
+      var c = j.content ? Promise.resolve(j.content) : GH.api(GH.repoPath() + '/git/blobs/' + j.sha).then(function (b) { return b.content; });   // files over 1 MB
+      return c.then(function (content) { return { sha: j.sha, text: GH.b64dec(content) }; });
+    });
+  },
+  message: function () {
+    var base = GH.base, H = st.habits, parts = [];
+    if (base != null) {
+      st.data.log.forEach(function (e) {
+        var n = H[e.habitId] ? H[e.habitId].short : e.habitId;
+        if (e.seq > base) parts.push(n + (e.kind === 'negative' ? ' x' + e.amount : '') + ' ' + e.date.slice(5));
+        if (e.repair && e.repair.seq > base) parts.push('repaired ' + n + ' ' + e.date.slice(5));
+      });
+      (st.data.traits || []).forEach(function (t) { if (t.seq > base) parts.push('gene: ' + t.name); });
+    }
+    var head = parts.length ? parts.slice(0, 8).join(', ') + (parts.length > 8 ? ', and ' + (parts.length - 8) + ' more' : '') : 'update';
+    return 'Strand: ' + head + ' (' + fmt(st.D ? st.D.points : 0) + ' points)';
+  },
+  schedule: function () {
+    if (!GH.on()) return;
+    GH.dirty(true);
+    if (GH.state === 'conflict') return;
+    GH.state = 'pending'; clearTimeout(GH.timer); GH.timer = setTimeout(GH.push, 5000); syncStatus();
+  },
+  push: function () {
+    if (!GH.on()) return;
+    clearTimeout(GH.timer);
+    if (GH.busy) { GH.again = true; return; }
+    GH.busy = true; GH.state = 'saving'; syncStatus();
+    var body = { message: GH.message(), content: GH.b64enc(Store.text()) }, seqAt = st.data.meta.seq;
+    if (GH.sha) body.sha = GH.sha;
+    if (GH.cfg.branch) body.branch = GH.cfg.branch;
+    GH.api(GH.filePath(), { method: 'PUT', body: body }).then(function (j) {
+      GH.busy = false;
+      if (!j) { GH.setSha(null); GH.state = 'error'; GH.err = 'The repo or file was not found. Check the repo name in Data.'; syncStatus(); return; }
+      GH.setSha(j.content.sha); GH.setBase(seqAt); GH.last = new Date(); GH.err = '';
+      if (GH.again) { GH.again = false; GH.push(); return; }
+      GH.dirty(false); GH.state = 'ok'; syncStatus();
+    }).catch(function (e) {
+      GH.busy = false; GH.again = false;
+      if (e.status === 409 || (e.status === 422 && /sha/i.test(e.message))) return GH.conflict();
+      GH.state = 'error'; GH.err = e.message; syncStatus();
+    });
+  },
+  apply: function (rm) {
+    var d = E.normalize(JSON.parse(rm.text));
+    st.data = d; GH.setSha(rm.sha); GH.setBase(d.meta.seq); GH.dirty(false); GH.state = 'ok'; GH.err = ''; GH.last = new Date();
+    try { localStorage.setItem(LS_KEY, rm.text); } catch (e) {}
+  },
+  conflict: function (known) {
+    GH.state = 'conflict'; syncStatus();
+    (known ? Promise.resolve(known) : GH.fetchRemote()).then(function (rm) {
+      var when = '';
+      try { var m = JSON.parse(rm.text).meta; when = ' at ' + new Date(m.updatedAt).toLocaleString(); } catch (e) {}
+      modal('Your saved data changed on another device', 'GitHub has a newer save' + esc(when) + ' than the one this device started from, and this device has changes too. Choose which version to keep. The other one stays in the repo\'s commit history, so you can still get it back.', [
+        { label: 'Load the saved version', cls: 'go', fn: function () { GH.apply(rm); st.mediaCache = {}; boot2(true); toast('<b>Loaded the latest save from GitHub.</b>', 'gold'); } },
+        { label: 'Keep this device\'s version', fn: function () { GH.setSha(rm ? rm.sha : null); GH.state = 'pending'; GH.push(); } }
+      ]);
+    }).catch(function (e) { GH.state = 'error'; GH.err = e.message; syncStatus(); });
+  },
+  /* on open: decide whether this device or GitHub has the newer data */
+  init: function () {
+    if (!GH.load()) return Promise.resolve();
+    GH.state = 'saving';
+    return GH.fetchRemote().then(function (rm) {
+      if (!rm) { GH.setSha(null); GH.pendingPush = true; return; }
+      if (rm.sha === GH.sha) { if (GH.dirty()) GH.pendingPush = true; else GH.state = 'ok'; return; }
+      if (!GH.dirty()) { GH.apply(rm); return; }
+      GH.pendingConflict = rm;
+    }).catch(function (e) { GH.state = 'error'; GH.err = e.message; });
+  },
+  afterBoot: function () {
+    if (GH.pendingPush) { GH.pendingPush = false; GH.push(); }
+    if (GH.pendingConflict) { var rm = GH.pendingConflict; GH.pendingConflict = null; GH.conflict(rm); }
+    syncStatus();
+  },
+  /* coming back to the tab: pick up a save made on another device */
+  check: function () {
+    if (!GH.on() || GH.busy || GH.dirty() || GH.state === 'conflict' || Date.now() - GH.lastCheck < 15000) return;
+    GH.lastCheck = Date.now();
+    GH.fetchRemote().then(function (rm) {
+      if (rm && rm.sha !== GH.sha && !GH.dirty()) { GH.apply(rm); st.mediaCache = {}; boot2(true); toast('<b>Loaded your latest save</b> from another device.', 'gold'); }
+    }).catch(function () {});
+  },
+  connect: function (cfg) {
+    GH.cfg = cfg; GH.state = 'saving'; GH.err = ''; syncStatus(); if (st.drawer === 'data') renderDrawer();
+    var fail = function (msg) { GH.cfg = null; GH.state = 'off'; GH.err = msg; syncStatus(); if (st.drawer === 'data') renderDrawer(); toast(esc(msg), 'bad'); };
+    return GH.api(GH.repoPath()).then(function (repo) {
+      if (!repo) return fail('Repo ' + cfg.owner + '/' + cfg.repo + ' was not found, or the token cannot see it. Check the name and the token\'s repository access.');
+      if (repo.permissions && repo.permissions.push === false) return fail('This token can read the repo but not write to it. Give it Contents: Read and write.');
+      var go = function () {
+        GH.ls(GH.K.cfg, JSON.stringify(cfg)); GH.setSha(null); GH.setBase(null); GH.edit = false;
+        return GH.fetchRemote().then(function (rm) {
+          if (!rm) { GH.push(); toast('<b>Connected.</b> Saving to ' + esc(cfg.owner + '/' + cfg.repo) + ' from now on.', 'gold'); if (st.drawer === 'data') renderDrawer(); return; }
+          modal('This repo already has Strand data', 'Load the data saved in ' + esc(cfg.owner + '/' + cfg.repo) + ', or replace it with what is on screen now? Replacing still keeps the old version in the commit history.', [
+            { label: 'Load the saved data', cls: 'go', fn: function () { GH.apply(rm); st.mediaCache = {}; boot2(true); toast('<b>Connected</b> and loaded your saved data.', 'gold'); } },
+            { label: 'Replace it with what is on screen', fn: function () { GH.setSha(rm.sha); GH.push(); toast('<b>Connected.</b> GitHub now holds what is on screen.', 'gold'); } }
+          ]);
+        });
+      };
+      if (repo.private === false) {
+        modal('This repo is public', 'Anyone could read your habit log there, alcohol entries included. Make the repo private on GitHub first (Settings, then Change visibility), or connect anyway.', [
+          { label: 'Connect anyway', fn: go }, { label: 'I will make it private first', cls: 'go', fn: function () { fail('Not connected. Make the repo private, then connect again.'); } }
+        ]);
+        return;
+      }
+      return go();
+    }).catch(function (e) { fail(e.message); });
+  },
+  disconnect: function () {
+    [GH.K.cfg, GH.K.sha, GH.K.dirty, GH.K.base].forEach(function (k) { GH.ls(k, null); });
+    GH.cfg = null; GH.sha = null; GH.state = 'off'; GH.err = ''; GH.edit = false; clearTimeout(GH.timer); syncStatus();
+  }
 };
 
 /* ============================== media slots ============================== */
@@ -1725,8 +1938,22 @@ function countTo(target) {
 }
 function syncStatus() {
   var b = $('#navData'); if (!b) return;
-  var warn = st.dirState !== 'linked' || st.writeError;
-  b.innerHTML = 'Data' + (warn ? '<span class="dot" style="background:var(--amber);box-shadow:0 0 8px var(--amber)" title="Not saving to a data file"></span>' : '');
+  var col = null, tip = '';
+  if (GH.on()) {
+    if (GH.state === 'error') { col = 'var(--lesion)'; tip = 'GitHub save failed'; }
+    else if (GH.state === 'conflict') { col = 'var(--lesion)'; tip = 'Choose which version to keep'; }
+    else if (GH.state === 'pending' || GH.state === 'saving') { col = 'var(--aqua)'; tip = 'Saving to GitHub'; }
+  } else if (st.dirState !== 'linked' || st.writeError) { col = 'var(--amber)'; tip = 'Only saved in this browser'; }
+  b.innerHTML = 'Data' + (col ? '<span class="dot" style="background:' + col + ';box-shadow:0 0 8px ' + col + '" title="' + tip + '"></span>' : '');
+  if (st.drawer === 'data' && !document.activeElement.closest('#ghForm')) { var box = $('#ghStatus'); if (box) box.outerHTML = ghStatusHtml(); }
+}
+function ghStatusHtml() {
+  var c = GH.cfg, where = c ? esc(c.owner + '/' + c.repo + '/' + c.path) : '', cls = 'status', msg;
+  if (GH.state === 'conflict') { cls += ' bad'; msg = '<b>Another device saved newer data.</b> Choose which version to keep.'; }
+  else if (GH.state === 'error') { cls += ' bad'; msg = '<b>Not saved to GitHub:</b> ' + esc(GH.err) + (GH.dirty() ? ' Your changes are kept in this browser until it works.' : ''); }
+  else if (GH.state === 'pending' || GH.state === 'saving') { msg = '<b>Saving to ' + where + '.</b> Changes are sent a few seconds after your last tap.'; }
+  else { cls += ' ok'; msg = '<b>Saving to ' + where + '.</b> ' + (GH.last ? 'Last saved at ' + GH.last.toLocaleTimeString() + '.' : 'Up to date.'); }
+  return '<div class="' + cls + '" id="ghStatus"><i></i><span>' + msg + '</span></div>';
 }
 
 /* ============================== deck ===================================== */
@@ -2072,15 +2299,40 @@ function settingsHtml() {
   h += '<textarea id="advJson" spellcheck="false" style="min-height:260px">' + esc(JSON.stringify(adv, null, 1)) + '</textarea><div class="row"><button class="btn go" data-act="advApply">Apply</button><button class="btn" data-act="resetSettings">Reset every number to its starting value</button></div>';
   return h;
 }
+function ghHtml() {
+  var h = '<h3>Sync to GitHub</h3>';
+  if (GH.on() && !GH.edit) {
+    var c = GH.cfg, hist = 'https://github.com/' + encodeURIComponent(c.owner) + '/' + encodeURIComponent(c.repo) + '/commits/' + (c.branch ? encodeURIComponent(c.branch) : 'HEAD') + '/' + c.path.split('/').map(encodeURIComponent).join('/');
+    h += ghStatusHtml() + '<div class="row"><button class="btn go" data-act="ghSave">Save now</button>' + (GH.state === 'conflict' ? '<button class="btn" data-act="ghResolve">Choose a version</button>' : '') +
+      '<a class="btn" href="' + hist + '" target="_blank" rel="noopener">See save history</a><button class="btn" data-act="ghEdit">Change repo or token</button><button class="btn" data-act="ghOff">Disconnect</button></div>' +
+      '<p>Every save is a commit in that repo, so any earlier version can be restored from its history. The token is kept in this browser only. Each device you use Strand on needs it pasted once.</p>';
+    return h;
+  }
+  var c0 = GH.cfg || {}, host = location.hostname.match(/^([^.]+)\.github\.io$/), owner = c0.owner || (host ? host[1] : '');
+  h += '<p>Save your data to a private GitHub repo, so it follows you to every device and keeps a history of every save. One-time setup:</p><ol class="steps">' +
+    '<li>On GitHub, create a new repository named <b>strand-data</b> and set it to <b>Private</b>.</li>' +
+    '<li>Create a token: <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">new fine-grained token</a>. Under <b>Repository access</b>, choose <b>Only select repositories</b> and pick strand-data. Under <b>Permissions</b>, set <b>Contents</b> to <b>Read and write</b>. Pick an expiration and generate it.</li>' +
+    '<li>Paste it below and connect. It stays in this browser only. It is never written into the page or the data file.</li></ol>' +
+    '<form id="ghForm" class="grid2 ghf" autocomplete="off" onsubmit="return false">' +
+    '<label for="ghOwner">GitHub username</label><input id="ghOwner" value="' + esc(owner) + '" spellcheck="false">' +
+    '<label for="ghRepo">Repository</label><input id="ghRepo" value="' + esc(c0.repo || 'strand-data') + '" spellcheck="false">' +
+    '<label for="ghPath">File name</label><input id="ghPath" value="' + esc(c0.path || DATA_FILE) + '" spellcheck="false">' +
+    '<label for="ghBranch">Branch<small>Leave empty for the default</small></label><input id="ghBranch" value="' + esc(c0.branch || '') + '" spellcheck="false">' +
+    '<label for="ghToken">Token</label><input id="ghToken" type="password" placeholder="github_pat_..." spellcheck="false"></form>' +
+    '<div class="row"><button class="btn go" data-act="ghConnect">Connect</button>' + (GH.on() ? '<button class="btn" data-act="ghCancel">Cancel</button>' : '') + '</div>' + (GH.err && !GH.on() ? '<div class="status bad"><i></i><span>' + esc(GH.err) + '</span></div>' : '');
+  return h;
+}
 function dataHtml() {
-  var h = '', cls = 'status', msg, btn = '';
+  var h = ghHtml(), cls = 'status', msg, btn = '';
   if (!Store.canLink) { msg = 'This browser cannot write a data file directly, so your data is kept in this browser. Use Chrome or Edge to link a file, and export backups in the meantime.'; }
+  else if (st.dirState === 'none' && GH.on()) { cls += ' ok'; msg = '<b>Optional.</b> GitHub sync already saves everything. Link a folder too if you want a copy on this computer.'; btn = '<button class="btn" data-act="link">Link my Strand folder</button>'; }
   else if (st.dirState === 'none') { msg = '<b>Not linked to a data file yet.</b> Everything is saved in this browser only. Link the folder where Strand lives and it writes <code>' + DATA_FILE + '</code> there after every change.'; btn = '<button class="btn go" data-act="link">Link my Strand folder</button>'; }
   else if (st.dirState === 'paused') { msg = '<b>Linked to "' + esc(st.dirName) + '", waiting for permission.</b> The browser asks once per visit.'; btn = '<button class="btn go" data-act="reconnect">Reconnect</button><button class="btn" data-act="unlink">Unlink</button>'; }
   else if (st.writeError) { cls += ' bad'; msg = '<b>Could not write the data file:</b> ' + esc(st.writeError) + '. Your data is still safe in this browser.'; btn = '<button class="btn go" data-act="reconnect">Try again</button>'; }
   else { cls += ' ok'; msg = '<b>Saving to ' + esc(st.dirName) + '/' + DATA_FILE + '.</b> ' + (st.lastWrite ? 'Last written at ' + st.lastWrite.toLocaleTimeString() + '.' : 'Up to date.'); btn = '<button class="btn" data-act="unlink">Unlink</button>'; }
-  h += '<h3>Your data file</h3><div class="' + cls + '"><i></i><span>' + msg + '</span></div><div class="row">' + btn + '</div>';
+  h += '<h3>Data file on this computer</h3><div class="' + cls + '"><i></i><span>' + msg + '</span></div><div class="row">' + btn + '</div>';
   h += '<h3>Backup</h3><p>Export writes everything: habits, log, points ledger, shields, gene picks, milestones, media index and settings. Importing a backup replaces what is here.</p><div class="row"><button class="btn" data-act="export">Export a backup</button><button class="btn" data-act="importBackup">Import a backup</button><button class="btn" data-act="wipe">Wipe everything</button></div>';
+  h += '<h3>Import a backup from a link</h3><p>Paste a link that returns a Strand data file as JSON, such as an npoint API link. It replaces what is here, the same as importing a backup.</p><div class="row"><input id="impUrl" style="flex:1;min-width:240px" placeholder="https://api.npoint.io/..." spellcheck="false"><button class="btn" data-act="importUrl">Import from link</button></div>';
   h += '<h3>Import entries</h3><p>Merge check-ins you dictated somewhere else. Paste the JSON or pick a file. An entry whose import ID was already merged is skipped, so importing the same file twice is safe.</p><textarea id="impText" spellcheck="false" placeholder=\'{ "strandImport": 1, "entries": [ { "importId": "2026-11-15-a", "date": "2026-11-15", "habit": "water" } ] }\'></textarea><div class="row"><button class="btn go" data-act="importEntries">Merge these entries</button><button class="btn" data-act="importEntriesFile">Pick a file</button></div>';
   if (st.importReport) h += '<pre>' + esc(st.importReport) + '</pre>';
   h += '<h3>Notes: the entry import format</h3><pre>{\n  "strandImport": 1,\n  "entries": [\n    { "importId": "2026-11-15-a", "date": "2026-11-15", "habit": "water" },\n    { "importId": "2026-11-15-b", "date": "2026-11-15", "habit": "gym", "note": "legs" },\n    { "importId": "2026-11-14-c", "date": "2026-11-14", "habit": "alcohol", "amount": 2 }\n  ]\n}</pre><ul><li><b>importId</b>: any text, unique per entry. Re-importing the same ID is skipped.</li><li><b>date</b>: YYYY-MM-DD, the day it happened. Not in the future.</li><li><b>habit</b>: one of ' + st.data.habits.map(function (x) { return '<code>' + esc(x.id) + '</code>'; }).join(', ') + '. The short name or symbol also works.</li><li><b>amount</b>: only for alcohol, the number of drinks. <b>note</b>: optional.</li><li>A bare list <code>[ {...}, {...} ]</code> or a single entry object is accepted too.</li><li>A habit already logged for that day is skipped, not doubled. Bonus rolls for imported entries happen at import time.</li></ul>';
@@ -2100,6 +2352,23 @@ function drawerAct(a, el) {
     else download('media-request-' + id + '.json', txt);
   }
   else if (a === 'mimport') pickFile(slot.kind === 'video' ? 'video/mp4,video/webm' : 'image/png,image/jpeg,image/webp').then(function (f) { if (f) Media.importFile(slot, f); });
+  else if (a === 'ghConnect') {
+    var v = function (id) { return ($('#' + id).value || '').trim(); }, tok = v('ghToken') || (GH.cfg && GH.cfg.token) || '';
+    if (!v('ghOwner') || !v('ghRepo') || !tok) { toast('Fill in the username, the repository and the token.', 'bad'); return; }
+    GH.connect({ owner: v('ghOwner'), repo: v('ghRepo'), path: (v('ghPath') || DATA_FILE).replace(/^\/+/, ''), branch: v('ghBranch'), token: tok });
+  }
+  else if (a === 'ghSave') { GH.dirty(true); GH.push(); }
+  else if (a === 'ghResolve') GH.conflict();
+  else if (a === 'ghEdit') { GH.edit = true; renderDrawer(); }
+  else if (a === 'ghCancel') { GH.edit = false; renderDrawer(); }
+  else if (a === 'ghOff') modal('Disconnect GitHub?', 'This device stops saving to GitHub and forgets the token. Your data stays here and in the repo.', [{ label: 'Disconnect', cls: 'hot', fn: function () { GH.disconnect(); renderDrawer(); } }]);
+  else if (a === 'importUrl') {
+    var u = ($('#impUrl').value || '').trim(); if (!/^https:\/\//.test(u)) { toast('Paste a link that starts with https://', 'bad'); return; }
+    fetch(u, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('the link answered ' + r.status); return r.json(); }).then(function (j) {
+      var d = E.normalize(j);
+      modal('Replace what is here?', 'The link holds ' + d.log.length + ' log entries. Importing replaces the data on screen' + (GH.on() ? ' and saves it to GitHub' : '') + '.', [{ label: 'Import it', cls: 'go', fn: function () { st.data = d; st.mediaCache = {}; boot2(true); Store.save(); toast('<b>Imported</b> ' + d.log.length + ' entries from the link.', 'gold'); } }]);
+    }).catch(function (e) { toast('Could not import from that link: ' + esc(e.message), 'bad'); });
+  }
   else if (a === 'link') Store.link();
   else if (a === 'reconnect') Store.reconnect();
   else if (a === 'unlink') Store.unlink();
@@ -2146,6 +2415,177 @@ function drawerChange(el) {
   else return;
   recompute(); renderHUD(); renderDeck(); renderSide(); Store.save();
 }
+
+
+/* ============================== guide: spoken walkthrough ================ */
+/* Narrated with the browser's own voices (Web Speech API). The script is built
+   from live settings, so every number it says matches what the game does. */
+var Guide = {
+  on: false, ch: 0, line: 0, playing: false, token: 0, timer: null, chapters: [], rate: 1, voiceName: '', listOpen: false,
+  syn: window.speechSynthesis || null,
+  script: function () {
+    var s = S(), H = st.habits, w = function (id) { return H[id] ? H[id].weight : 0; };
+    var th = s.thinning, t0 = th[0], tN = th[th.length - 1], bz = s.bonuses;
+    var bName = function (i, fb) { return bz[i] ? bz[i].name.toLowerCase() : fb; }, bMul = function (i) { return bz[i] ? bz[i].mult : 1; };
+    var times = function (m) { return m === 1 ? 'the habit\'s weight again' : m === 2 ? 'twice its weight' : m + ' times its weight'; };
+    var rt = st.data.routines.map(function (r) { return 'The ' + r.name.toLowerCase() + ' is ' + r.habits.map(function (id) { return H[id] ? H[id].short.toLowerCase() : id; }).join(', ').replace(/, ([^,]*)$/, ' and $1') + '.'; });
+    var gym = H.gym || { weeklyTarget: 2 }, alc = H.alcohol || { weight: 12 };
+    var pct = function (x) { return Math.round(x * 100); };
+    return [
+      { title: 'Welcome', target: '#field', lines: [
+        'Welcome to Strand.', 'Strand turns your habits into a growing strand of D N A.',
+        'Every habit you complete adds a base pair, and every day adds a stretch of strand.',
+        'Nothing on the strand is decoration. Its length, its gaps and its repairs all come straight from your log.',
+        'Drag the strand to move through time, and scroll on it to zoom. Hover a base pair to see what it was.',
+        'This walkthrough has nine short chapters. You can jump to any of them from the list.'] },
+      { title: 'Checking in', target: '#left .atoms', lines: [
+        'Your daily check-in lives below the strand. Each habit is an atom.',
+        'Tap an atom once when the habit is done.',
+        'It lights up, you hear a tone, the points float up, and a new base pair flies onto the strand.',
+        'Health atoms sit on one side of the helix, and spiritual atoms on the other.',
+        'Tapped the wrong one? Tap it again. The label changes to, tap again to undo, and a second tap removes it.',
+        'Forgot a day? Use the arrows beside the date to step back. You can check in up to ' + s.backfillDays + ' days back.',
+        'Weekly habits show a ring that fills toward the week\'s target. The gym aims for ' + (gym.weeklyTarget || 2) + ' a week, and extra sessions still pay.',
+        'A full day of check-ins takes well under a minute.'] },
+      { title: 'Points and bonuses', target: '.tally', lines: [
+        'Each habit pays points by weight. A gym session pays ' + w('gym') + '. Vitamins pay ' + w('vitamins') + '. You can change any weight in Settings.',
+        'Now and then, a check-in pays a surprise bonus on top.',
+        'A ' + bName(0, 'crit') + ' adds ' + times(bMul(0)) + '. A ' + bName(1, 'vesicle') + ' adds ' + times(bMul(1)) + '. A ' + bName(2, 'rare isotope') + ' adds ' + times(bMul(2)) + '.',
+        'You can\'t predict which tap will pay. That is on purpose.',
+        'As a habit\'s streak grows, its base pay thins, down to ' + pct(tN.basePct) + ' percent after ' + tN.minStreak + ' days in a row.',
+        'At the same time its bonus odds rise, from ' + pct(t0.bonusChance) + ' percent to ' + pct(tN.bonusChance) + ' percent. A long streak trades steady pay for bigger surprises.'] },
+      { title: 'Bonds and stable molecules', target: '#molBox', lines: [
+        'The molecule on the right shows today\'s daily atoms.',
+        'Finish every habit in a routine on the same day, and those atoms bond.'].concat(rt, [
+        'Each bond pays ' + st.D.fx.bond + ' points.',
+        'Finish every daily habit in both categories, and the day becomes a stable molecule.',
+        'A stable molecule pays ' + st.D.fx.molecule + ' points, and that day gets a gold halo on the strand.']) },
+      { title: 'Stable weeks and shields', target: '#side .week', lines: [
+        'Points start out loose. Loose points can be lost to a clawback, which comes up in a moment.',
+        'A solid day has at least ' + s.stableWeek.solidDayMinCheckins + ' check-ins. A week with ' + s.stableWeek.minSolidDays + ' solid days closes stable.',
+        'When a stable week closes, all of its loose points bond for good. Bonded points can never be taken back.',
+        'The line under the strand shows this. Solid purple is bonded. Dashed is still loose.',
+        'A stable week also earns a shield. You can hold up to ' + st.D.shieldsMax + '.',
+        'If you miss a whole day, a shield is spent automatically, and your chain survives. That day shows as a pale blue hexagon.',
+        'If you miss a day with no shield left, it becomes a gap, and the chain starts over.',
+        'A gap never costs points. Nothing in Strand decays on its own while you\'re away.'] },
+      { title: 'Genes', target: '#geneCard, #side .card:last-child', lines: [
+        'Every stable week also earns a gene.',
+        'When one is waiting, a gold chip appears on the strand, and three genes are offered at the top of the side panel.',
+        'Choose one. It is permanent, and it works from that day forward.',
+        'Genes can add a shield slot, make repairs earn back more, raise bonus odds for health or spiritual habits, or make bonds and stable molecules pay more.',
+        'Most genes can be taken more than once, up to a limit. Over the months, your genome becomes your own build.'] },
+      { title: 'Negatives and repair', target: '.atom.neg', lines: [
+        'Alcohol is tracked as a negative. Tap it only when it happens, set the number of drinks, and log it.',
+        'Logging honestly always pays ' + s.points.integrity + ' points. The honesty never costs you.',
+        'The drinks do cost. Each one claws back up to ' + alc.weight + ' points, taken from your newest loose points first. Bonded points are never touched.',
+        'There are caps. No single day can lose more than ' + s.clawback.dayCap + ' points, and no seven days in a row more than ' + s.clawback.weekCap + '.',
+        'On the strand, that base pair shows as damaged, with a break in the backbone.',
+        'Then the repair bay opens. It follows how a cell repairs its D N A: recognize the damage, cut it out and fill it, then seal it.',
+        'Recognizing is already done, because you logged it. Pick one recovery action, do it, and seal the repair.',
+        'That earns back ' + pct(st.D.fx.repairRate) + ' percent of what was clawed, and the pair is marked repaired for good, with a gold seam.',
+        'The repair stays open until the end of the day you logged it.'] },
+      { title: 'Stages and the vault', target: '#stagebox', lines: [
+        'Your stage is at the top left. Points carry you through three phases: strand, then cell, then organism, with several stages inside each.',
+        'The bar shows how close the next stage is. Stages are spaced so the next one is always in sight.',
+        'Stages never go backward.',
+        'Small stage changes flash a banner. The big ones take the whole screen.',
+        'Five big stages each earn a film of your strand exactly as it stood that day. Eight milestone compounds each earn a collectible card.',
+        'Films and cards live in the Vault. When a slot unlocks, copy its media request and give it to Claude, then drop the file you get back into the media folder.'] },
+      { title: 'Your data', target: '#navData', lines: [
+        'Open Data and link your Strand folder once. After that, every change is saved to strand dash data dot jason in that folder.',
+        'The browser asks for permission again on each visit. When it does, click reconnect.',
+        'Export a backup now and then. Importing it puts everything back, the points ledger included.',
+        'You can also merge entries you dictated on your phone. The format is in the Data panel, and an entry is never imported twice.',
+        'Every number you heard here comes from Settings, and this walkthrough reads them live, so it stays accurate when you change them.',
+        'That\'s Strand. Go tap your first atom.'] }
+    ];
+  },
+  voices: function () {
+    if (!Guide.syn) return [];
+    var v = Guide.syn.getVoices().filter(function (x) { return /^en/i.test(x.lang); });
+    var score = function (x) { var n = x.name; return (/natural/i.test(n) ? 40 : 0) + (/online/i.test(n) ? 10 : 0) + (/aria|jenny|guy|andrew|emma|brian|ava/i.test(n) ? 8 : 0) + (/google/i.test(n) ? 6 : 0) + (/en-us/i.test(x.lang) ? 3 : 0); };
+    return v.sort(function (a, b) { return score(b) - score(a); });
+  },
+  voice: function () { var vs = Guide.voices(); return vs.find(function (x) { return x.name === Guide.voiceName; }) || vs[0] || null; },
+  open: function () {
+    try { Guide.rate = +localStorage.getItem('strand.guide.rate') || 1; Guide.voiceName = localStorage.getItem('strand.guide.voice') || ''; } catch (e) {}
+    closeDrawer(); Guide.on = true; Guide.chapters = Guide.script(); Guide.ch = 0; Guide.line = 0;
+    $('#guide').classList.add('on'); Guide.render(); Guide.play();
+  },
+  close: function () { Guide.stop(); Guide.on = false; $('#guide').classList.remove('on'); $('#spot').classList.remove('on'); },
+  stop: function () { Guide.token++; clearTimeout(Guide.timer); if (Guide.syn) Guide.syn.cancel(); Guide.playing = false; },
+  play: function () {
+    Guide.stop(); Guide.playing = true; Guide.render(); Guide.say();
+  },
+  say: function () {
+    var c = Guide.chapters[Guide.ch]; if (!c) return Guide.finish();
+    if (Guide.line >= c.lines.length) {
+      if (Guide.ch >= Guide.chapters.length - 1) return Guide.finish();
+      Guide.ch++; Guide.line = 0; Guide.render();
+      var tk0 = Guide.token; Guide.timer = setTimeout(function () { if (tk0 === Guide.token) Guide.say(); }, 700); return;
+    }
+    Guide.render();
+    var text = c.lines[Guide.line], tk = Guide.token, next = function () { if (tk !== Guide.token) return; Guide.line++; Guide.timer = setTimeout(function () { if (tk === Guide.token) Guide.say(); }, 260); };
+    var v = Guide.voice();
+    if (!Guide.syn || !v) { Guide.timer = setTimeout(next, Math.max(2200, text.split(' ').length * 380 / Guide.rate)); return; }   // captions only
+    var u = new SpeechSynthesisUtterance(text.replace(/\bD N A\b/g, 'D.N.A.').replace('strand dash data dot jason', 'strand-data dot jason'));
+    u.voice = v; u.lang = v.lang; u.rate = Guide.rate; u.pitch = 1;
+    u.onend = next; u.onerror = function (e) { if (e.error !== 'interrupted' && e.error !== 'canceled') next(); };
+    Guide.syn.speak(u);
+  },
+  pause: function () { Guide.stop(); Guide.render(); },
+  finish: function () { Guide.stop(); Guide.ch = Guide.chapters.length - 1; Guide.line = Guide.chapters[Guide.ch].lines.length - 1; Guide.render(true); },
+  go: function (i) { Guide.ch = clamp(i, 0, Guide.chapters.length - 1); Guide.line = 0; Guide.listOpen = false; Guide.play(); },
+  render: function (done) {
+    var g = $('#guide'), c = Guide.chapters[Guide.ch], n = Guide.chapters.length; if (!c) return;
+    var vs = Guide.voices(), cur = Guide.voice();
+    $('#gChap').textContent = 'Chapter ' + (Guide.ch + 1) + ' of ' + n + ': ' + c.title;
+    $('#gCap').textContent = done ? 'End of the walkthrough.' : c.lines[Math.min(Guide.line, c.lines.length - 1)];
+    $('#gPlay').innerHTML = Guide.playing ? '<svg viewBox="0 0 20 20"><rect x="5" y="4" width="3.4" height="12" rx="1"/><rect x="11.6" y="4" width="3.4" height="12" rx="1"/></svg>' : '<svg viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z"/></svg>';
+    $('#gPlay').setAttribute('aria-label', Guide.playing ? 'Pause' : 'Play');
+    $('#gBar').innerHTML = Guide.chapters.map(function (x, i) { var f = i < Guide.ch ? 1 : i > Guide.ch ? 0 : (Guide.line + (done ? 1 : 0)) / x.lines.length; return '<button data-g="go" data-i="' + i + '" title="' + esc(x.title) + '"><i style="width:' + (f * 100) + '%"></i></button>'; }).join('');
+    $('#gList').hidden = !Guide.listOpen;
+    $('#gList').innerHTML = Guide.chapters.map(function (x, i) { return '<button data-g="go" data-i="' + i + '" aria-current="' + (i === Guide.ch) + '"><span>' + (i + 1) + '</span>' + esc(x.title) + '</button>'; }).join('');
+    $('#gVoice').innerHTML = vs.length ? vs.map(function (v) { return '<option' + (cur && v.name === cur.name ? ' selected' : '') + '>' + esc(v.name) + '</option>'; }).join('') : '<option>No voice found: captions only</option>';
+    $('#gRate').value = String(Guide.rate);
+    g.classList.toggle('mute', !vs.length);
+    Guide.spot(c);
+  },
+  spot: function (c) {
+    var sp = $('#spot'), el = null;
+    c.target.split(',').some(function (sel) { el = $(sel.trim()); return el && el.offsetParent !== null; });
+    if (el && el.closest('.card') && !el.matches('.card') && el.id !== 'left') el = el.closest('.card') || el;
+    if (!el) { sp.classList.remove('on'); return; }
+    if (Guide.lastEl !== el) { Guide.lastEl = el; el.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' }); }
+    sp.classList.add('on');
+  },
+  track: function () {
+    if (Guide.on && Guide.lastEl && $('#spot').classList.contains('on')) {
+      var r = Guide.lastEl.getBoundingClientRect(), sp = $('#spot'), p = 8;
+      sp.style.transform = 'translate(' + (r.left - p) + 'px,' + (r.top - p) + 'px)'; sp.style.width = (r.width + p * 2) + 'px'; sp.style.height = (r.height + p * 2) + 'px';
+      var gd = $('#guide'); gd.style.setProperty('--gh', gd.offsetHeight + 'px'); gd.classList.toggle('up', r.top + r.height / 2 > innerHeight * 0.5);
+    }
+    requestAnimationFrame(Guide.track);
+  },
+  bind: function () {
+    var g = $('#guide');
+    g.addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-g]'); if (!b) return; var k = b.dataset.g;
+      if (k === 'play') Guide.playing ? Guide.pause() : Guide.play();
+      else if (k === 'prev') Guide.go(Guide.line > 0 ? Guide.ch : Guide.ch - 1);
+      else if (k === 'next') Guide.go(Guide.ch + 1);
+      else if (k === 'go') Guide.go(+b.dataset.i);
+      else if (k === 'list') { Guide.listOpen = !Guide.listOpen; Guide.render(); }
+      else if (k === 'close') Guide.close();
+    });
+    $('#gVoice').addEventListener('change', function () { Guide.voiceName = this.value; try { localStorage.setItem('strand.guide.voice', this.value); } catch (e) {} if (Guide.playing) Guide.play(); });
+    $('#gRate').addEventListener('change', function () { Guide.rate = +this.value; try { localStorage.setItem('strand.guide.rate', this.value); } catch (e) {} if (Guide.playing) Guide.play(); });
+    if (Guide.syn) Guide.syn.onvoiceschanged = function () { if (Guide.on) Guide.render(); };
+    window.addEventListener('beforeunload', function () { if (Guide.syn) Guide.syn.cancel(); });
+    requestAnimationFrame(Guide.track);
+  }
+};
 
 /* ============================== strand canvas ============================ */
 var cv, ctx, mini, mctx, frames = 0, slow = 0, lastT = 0;
@@ -2250,16 +2690,21 @@ function boot() {
   cv = $('#helix'); ctx = cv.getContext('2d'); mini = $('#mini'); mctx = mini.getContext('2d');
   try { Sfx.on = localStorage.getItem('strand.sound') !== 'off'; } catch (e) {}
   $('#soundBtn').setAttribute('aria-pressed', Sfx.on); $('#soundBtn').title = Sfx.on ? 'Sound is on' : 'Sound is off';
-  Store.init().then(function () {
-    resize(); boot2(); Store.save(); bindCanvas(); requestAnimationFrame(frame);
+  Store.init().then(GH.init).then(function () {
+    resize(); boot2(); Store.save(true); bindCanvas(); requestAnimationFrame(frame); GH.afterBoot();
     if (st.dirState === 'paused') toast('<b>Your data file needs one click.</b> The browser asks for permission once per visit.', '', { sticky: true, action: { label: 'Reconnect', fn: Store.reconnect } });
   });
   window.addEventListener('resize', function () { resize(); });
+  window.addEventListener('focus', GH.check);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') GH.check(); else if (GH.on() && GH.dirty() && GH.state === 'pending') GH.push(); });
+  window.addEventListener('online', function () { if (GH.on() && GH.dirty() && GH.state !== 'conflict') GH.push(); });
   $('#left').addEventListener('click', function (ev) { var b = ev.target.closest('[data-habit]'); if (b) return tapHabit(b.dataset.habit, b); var a = ev.target.closest('[data-act]'); if (a) act(a.dataset.act, a); });
   $('#side').addEventListener('click', function (ev) { var a = ev.target.closest('[data-act]'); if (a) act(a.dataset.act, a); });
   $('#drawerBody').addEventListener('click', function (ev) { var a = ev.target.closest('[data-act]'); if (a) drawerAct(a.dataset.act, a); });
   $('#drawerBody').addEventListener('change', function (ev) { drawerChange(ev.target); });
   $$('.nav [data-open]').forEach(function (b) { b.addEventListener('click', function () { openDrawer(b.dataset.open); }); });
+  $('#navGuide').addEventListener('click', function () { Sfx.init(); Guide.open(); }); Guide.bind();
+  $('#gStart') && $('#gStart').addEventListener('click', function () { Guide.open(); });
   $('#stagebox').addEventListener('click', function () { openDrawer('vault'); });
   $('#geneChip').addEventListener('click', function () { var c = $('#geneCard'); if (!c) return; $('#side').scrollTop = 0; c.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' }); c.classList.remove('pulse'); void c.offsetWidth; c.classList.add('pulse'); });
   $('#drawerClose').addEventListener('click', closeDrawer); $('#scrim').addEventListener('click', closeDrawer);
@@ -2273,11 +2718,11 @@ function boot() {
     } }]);
   });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') { if ($('#cine').classList.contains('on')) closeCine(); else if ($('#modal').classList.contains('on')) $('#modal').classList.remove('on'); else if (st.drawer) closeDrawer(); }
+    if (e.key === 'Escape') { if (Guide.on) Guide.close(); else if ($('#cine').classList.contains('on')) closeCine(); else if ($('#modal').classList.contains('on')) $('#modal').classList.remove('on'); else if (st.drawer) closeDrawer(); }
   });
   setInterval(function () { var now = U.toISO(new Date()); if (now !== st.today) { var prev = st.data.derived; boot2(true); dayTurnNotices(prev); Store.save(); } }, 30000);
 }
-window.Strand = { state: st, engine: E, modules: { habits: { id: 'habits', name: 'Habits' } }, registerModule: function (m) { window.Strand.modules[m.id] = m; } };
+window.Strand = { gh: GH, guide: Guide, state: st, engine: E, modules: { habits: { id: 'habits', name: 'Habits' } }, registerModule: function (m) { window.Strand.modules[m.id] = m; } };
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
 
