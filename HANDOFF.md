@@ -8,12 +8,18 @@ Newest entry first. Each session adds one entry: what changed, why, what is unte
 - Listen through the walkthrough once on the phone; if a caption changes early or late, adjust that line's `at` time in `GUIDE_CHAPTERS`.
 - Phone strand view: the field is mostly empty space at 390 px; consider a lower default zoom on phones.
 - **Build weekly challenges and bonus drops** from the design in the 2026-11-15 entry below (engine work: Opus or Fable). Suggested split: session 1 drops, session 2 challenges and stakes.
-- **Walkthrough re-recording (owner):** chapters 02, 03, 04, 05 and 07 of `video/guide-script.md` are rewritten. Record all five, then update their lines and `at` times in `GUIDE_CHAPTERS` (`src/app.js`). Until then the old audio and captions describe the old rules.
+- Listen through walkthrough chapters 02, 03, 04, 05 and 07 once on the phone; if a caption changes early or late, adjust that line's `at` time in `GUIDE_CHAPTERS`.
 - **Career and Financial on the strand:** the helix draws health on one strand and everything else on the other (`s.cat === 'health'` in `src/helix.js`), so Career and Financial base pairs would sit with Spiritual. Decide how they should look before adding the first habit in those domains.
 - The "Early prep" challenge in the 2026-11-15 spec now means both midweek steps.
 - No UI yet to add a habit; adding one means a code change with `addedOn`. Worth building once the domains fill up.
 - Idea raised but not started: the `nutrition` module (calories and macros, same data file and points ledger).
 - A leftover `add-source` branch exists on GitHub; it can be deleted from pull request #1.
+
+## 2026-11-16: re-recorded walkthrough chapters 02, 03, 04, 05, 07 (v1.4)
+
+**Changed:** new Muse recordings for the five chapters rewritten in v1.2 and v1.3 (`media/guide-0N.mp3`), and their `lines` and `at` times in `GUIDE_CHAPTERS`. Line starts were found by matching every sentence break to a pause in the audio (ffmpeg silencedetect, -38 dB, 0.25 s) with a pace-based estimate, and taking the end of the pause before each line. Note: the owner's first upload was the old files byte for byte; check new recordings differ from `media/` before using them.
+
+**Tested:** all five load in Chrome with the new lengths (62.4, 58.0, 55.6, 65.1, 76.9 s). **Untested:** caption timing by ear.
 
 ## 2026-11-16: whole-day fast, walk, two-step prep (v1.3)
 
