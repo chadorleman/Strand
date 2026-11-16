@@ -1,0 +1,2286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strand</title>
+<!--
+  STRAND  ·  a personal habit tracker played as a growing DNA strand
+  One standalone file. No server, no build step. Open it in Chrome or Edge.
+
+  WHERE THE DATA LIVES
+    Data > "Link my Strand folder" picks a folder. Strand then reads and writes
+    strand-data.json in that folder after every change. Until a folder is linked,
+    data is kept in this browser's storage. Data > Export / Import is the backup.
+
+  ENTRY IMPORT FORMAT  (Data > Import entries)
+    { "strandImport": 1,
+      "entries": [
+        { "importId": "2026-11-15-a", "date": "2026-11-15", "habit": "water" },
+        { "importId": "2026-11-14-c", "date": "2026-11-14", "habit": "alcohol", "amount": 2, "note": "optional" }
+      ] }
+    importId  unique text per entry; an ID already merged is skipped
+    date      YYYY-MM-DD, the day it happened
+    habit     sleep, water, fasting, pushups, gym, mindfulness, vitamins, alcohol,
+              dailyText, bible, study, midweek, watchtower
+    amount    alcohol only: number of drinks
+
+  MEDIA IMPORT FORMAT  (Vault)
+    Put files in a folder named "media" beside this page (inside the linked folder).
+    File name = milestone ID:   media/stage-protocell.mp4    media/compound-glycine.png
+    Films: .mp4 (H.264) or .webm     Cards: .png .jpg .webp
+    A slot's "Copy media request" gives the JSON Claude needs to render the art.
+
+  EVERY TUNABLE NUMBER is in one block: search this file for "SETTINGS BLOCK",
+  or use the Settings panel in the tool.
+
+  GENES: every week that closes stable earns one permanent pick from three offered
+  traits. Picks are stored under "traits" in the data file; the catalogue is in the
+  settings block.
+
+  FUTURE MODULES: the data file has a "modules" block, and every log entry and
+  ledger row carries a "module" name. "nutrition" is reserved and not built.
+-->
+<style>
+:root{
+  --abyss:#04121a; --deep:#071f2b; --panel:rgba(10,36,48,.66); --panel2:rgba(16,52,66,.55);
+  --line:rgba(150,215,225,.15); --line2:rgba(150,215,225,.28);
+  --ink:#e6f3f1; --dim:#8fb2b7; --faint:#5e8188;
+  --aqua:#58efc9; --amber:#ffbe55; --lesion:#ff4d78; --gold:#ffe9a6; --frost:#a8dcff; --bond:#c9b8ff;
+  --display:Bahnschrift,"DIN Alternate","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --body:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--abyss);color:var(--ink);font:15px/1.45 var(--body);overflow:hidden;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:
+  radial-gradient(1100px 620px at 14% -8%,rgba(22,96,104,.55),transparent 62%),
+  radial-gradient(900px 700px at 96% 108%,rgba(58,36,120,.42),transparent 60%),
+  radial-gradient(700px 420px at 70% 18%,rgba(12,70,92,.35),transparent 65%),
+  linear-gradient(180deg,#04121a,#03101a 60%,#050d1c)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--aqua);outline-offset:3px;border-radius:8px}
+input,textarea,select{font:inherit;color:var(--ink);background:rgba(3,18,26,.7);border:1px solid var(--line2);border-radius:8px;padding:6px 9px}
+h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;letter-spacing:.01em}
+.num{font-family:var(--display);font-variant-numeric:tabular-nums}
+
+.app{height:100vh;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr)}
+
+/* sample notice */
+.samplebar{display:flex;gap:14px;align-items:center;justify-content:center;padding:6px 16px;background:rgba(255,190,85,.12);border-bottom:1px solid rgba(255,190,85,.3);color:#ffdca0;font-size:13.5px}
+.samplebar button{border:1px solid rgba(255,190,85,.5);border-radius:99px;padding:2px 12px;color:#ffe3b3}
+.samplebar button:hover{background:rgba(255,190,85,.16)}
+.samplebar[hidden]{display:none}
+
+/* ---------- field: HUD floats over the strand ---------- */
+.field{position:relative;height:clamp(290px,41vh,460px);border-bottom:1px solid var(--line);overflow:hidden;user-select:none}
+#helix{position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none}
+#helix.drag{cursor:grabbing}
+.hud{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:12px 22px 6px;position:relative;z-index:3;min-width:0}
+.brand{display:flex;align-items:center;gap:9px;font:600 21px/1 var(--display);letter-spacing:.02em}
+.brand svg{width:26px;height:26px}
+.stagebox{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;align-items:center;text-align:left;padding:4px 6px;border-radius:12px}
+.stagebox:hover{background:rgba(255,255,255,.04)}
+.emblem{grid-row:1/3;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,rgba(88,239,201,.28),rgba(88,239,201,.04) 70%);border:1px solid var(--line2)}
+.emblem svg{width:30px;height:30px}
+.stagename{display:flex;align-items:baseline;gap:9px}
+.stagename strong{font:600 23px/1 var(--display)}
+.stagename span{color:var(--dim);font-size:13px}
+.stagebar{position:relative;height:9px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;width:clamp(104px,11.5vw,230px)}
+.stagebar i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:linear-gradient(90deg,var(--aqua),#b6f7a0 60%,var(--gold));transition:width .7s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 12px rgba(88,239,201,.6)}
+.stagebar::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),rgba(4,18,26,.55) calc(10% - 1px) 10%)}
+.stagerow{display:flex;align-items:center;gap:12px}
+.tonext{color:var(--dim);font-size:12.5px;white-space:nowrap}
+.tonext b{color:var(--ink);font-family:var(--display);font-weight:600}
+.spacer{flex:1}
+.tally{text-align:right}
+.tally .big{font:600 34px/1 var(--display);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.tally .big small{font:400 13px var(--body);color:var(--dim);margin-left:6px}
+.splitrow{display:flex;align-items:center;justify-content:flex-end;gap:12px;font-size:12.5px;color:var(--dim);margin-top:5px;white-space:nowrap}
+.splitrow b{color:var(--ink);font-family:var(--display);font-weight:600}
+.split{display:flex;height:6px;width:110px;border-radius:99px;overflow:hidden;background:rgba(255,255,255,.07)}
+.split i{background:var(--bond)}
+.split u{background:repeating-linear-gradient(115deg,rgba(230,243,241,.55) 0 3px,rgba(230,243,241,.16) 3px 6px)}
+.splitrow .kb::before,.splitrow .kl::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--bond)}
+.splitrow .kl::before{background:repeating-linear-gradient(115deg,rgba(230,243,241,.7) 0 2px,rgba(230,243,241,.2) 2px 4px)}
+.vitals{display:flex;flex-direction:column;gap:5px;align-items:flex-end;font-size:13px;color:var(--dim);white-space:nowrap}
+.vitals b{color:var(--ink);font:600 16px var(--display)}
+.shields{display:flex;align-items:center;gap:4px}
+.shields svg{width:19px;height:21px}
+.shields .on path{fill:rgba(168,220,255,.25);stroke:var(--frost)}
+.shields .off path{fill:none;stroke:rgba(168,220,255,.25)}
+.nav{display:flex;gap:2px}
+.nav button{white-space:nowrap;padding:7px 8px;border-radius:99px;color:var(--dim);font:500 14px var(--display);letter-spacing:.02em}
+.nav button:hover{color:var(--ink);background:rgba(255,255,255,.07)}
+.nav button[aria-pressed="true"]{color:var(--aqua)}
+.nav button[aria-pressed="false"]{text-decoration:line-through;opacity:.7}
+.nav .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gold);margin-left:5px;vertical-align:2px;box-shadow:0 0 8px var(--gold)}
+
+.fieldctl{position:absolute;right:20px;bottom:14px;display:flex;gap:6px;z-index:3}
+.fieldctl button{width:32px;height:32px;border-radius:50%;border:1px solid var(--line2);background:rgba(4,18,26,.6);color:var(--dim);font:500 16px var(--display)}
+.fieldctl button.txt{width:auto;padding:0 13px;font-size:13px}
+.fieldctl button:hover{color:var(--ink);border-color:var(--aqua)}
+#mini{position:absolute;left:22px;bottom:16px;width:min(340px,30vw);height:26px;z-index:3;cursor:pointer;opacity:.9}
+.key{position:absolute;left:calc(22px + min(340px,30vw) + 18px);bottom:19px;display:flex;gap:14px;font-size:12px;color:var(--faint);z-index:3;white-space:nowrap}
+.key i{display:inline-block;vertical-align:-1px;margin-right:5px}
+.key .k1{width:16px;height:3px;background:var(--bond);border-radius:2px;vertical-align:3px}
+.key .k2{width:16px;height:0;border-top:1.5px dashed rgba(230,243,241,.45);vertical-align:3px}
+.key .k3{width:9px;height:9px;border:1.5px solid var(--frost);transform:rotate(45deg) scale(.85)}
+.key .k4{width:9px;height:9px;background:var(--lesion);border-radius:2px}
+.key .k5{width:9px;height:9px;background:var(--gold);transform:rotate(45deg) scale(.8)}
+#tip{position:absolute;z-index:6;pointer-events:none;max-width:270px;padding:9px 12px;border-radius:10px;background:rgba(3,16,24,.94);border:1px solid var(--line2);font-size:13px;line-height:1.4;box-shadow:0 12px 30px rgba(0,0,0,.5);opacity:0;transition:opacity .12s}
+#tip.on{opacity:1}
+#tip b{font-family:var(--display);font-weight:600;font-size:14.5px}
+#tip .t2{color:var(--dim)}
+
+/* ---------- deck ---------- */
+.deck{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:0;min-height:0}
+.left{padding:14px 22px 22px;overflow:auto;min-height:0}
+.side{border-left:1px solid var(--line);padding:14px 18px 22px;overflow:auto;min-height:0;display:flex;flex-direction:column;gap:14px;background:linear-gradient(180deg,rgba(6,28,38,.5),rgba(6,22,34,.2))}
+.daybar{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.daybar h2{font-size:22px;min-width:218px}
+.daybar .step{width:30px;height:30px;border-radius:50%;border:1px solid var(--line2);color:var(--dim);font-size:16px;line-height:1}
+.daybar .step:hover:not(:disabled){color:var(--ink);border-color:var(--aqua)}
+.daybar .step:disabled{opacity:.3;cursor:default}
+.daybar .earn{font:600 16px var(--display);color:var(--aqua)}
+.daybar .note{color:var(--dim);font-size:13px}
+.daybar .back{border:1px solid var(--line2);border-radius:99px;padding:3px 12px;font-size:13px;color:var(--dim)}
+.daybar .back:hover{color:var(--ink);border-color:var(--aqua)}
+
+.cluster{margin-top:8px}
+.cluster h3{font-size:14px;font-weight:500;color:var(--dim);display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.cluster h3::before{content:"";width:22px;height:3px;border-radius:2px;background:var(--cat)}
+.cluster h3 span{color:var(--faint);font-family:var(--body);font-size:12.5px}
+.cluster[data-cat="health"]{--cat:var(--aqua)} .cluster[data-cat="spiritual"]{--cat:var(--amber)}
+.atoms{display:flex;flex-wrap:wrap;gap:6px 4px}
+.atom{--c:hsl(var(--hue) 88% 68%);--cd:hsl(var(--hue) 70% 30%);position:relative;width:108px;padding:8px 4px 7px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:5px;transition:background .15s,transform .12s}
+.atom:hover{background:rgba(255,255,255,.05)}
+.atom:active{transform:scale(.96)}
+.nuc{position:relative;width:72px;height:72px;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle at 34% 28%,hsl(var(--hue) 60% 26% / .9),hsl(var(--hue) 60% 11% / .9) 72%);transition:box-shadow .3s,background .3s}
+.nuc b{font:600 25px/1 var(--display);color:var(--c);letter-spacing:.01em;position:relative}
+.nuc svg{position:absolute;inset:-5px;width:82px;height:82px;transform:rotate(-90deg)}
+.nuc svg .tr{fill:none;stroke:hsl(var(--hue) 50% 60% / .28);stroke-width:2}
+.nuc svg .fi{fill:none;stroke:var(--c);stroke-width:3;stroke-linecap:round;transition:stroke-dashoffset .5s cubic-bezier(.2,.8,.2,1)}
+.atom .nm{font:500 13.5px/1.15 var(--display);text-align:center;letter-spacing:.01em;min-height:15px}
+.atom .sub{display:flex;gap:7px;font-size:12px;color:var(--dim);font-family:var(--display);font-variant-numeric:tabular-nums}
+.atom .sub i{font-style:normal;color:var(--c)}
+.atom.done .nuc{background:radial-gradient(circle at 34% 28%,#fff,var(--c) 34%,hsl(var(--hue) 80% 42%) 82%);box-shadow:0 0 0 1px hsl(var(--hue) 90% 80% / .7),0 0 26px hsl(var(--hue) 90% 60% / .55)}
+.atom.done .nuc b{color:#04202a}
+.atom.done .nm{color:var(--c)}
+.atom.pop .nuc{animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{0%{transform:scale(.8)}45%{transform:scale(1.18)}100%{transform:scale(1)}}
+.atom.locked{cursor:default;opacity:.62}
+.atom.locked:hover{background:none}
+.atom.arm .nm{color:var(--gold)}
+.atom:disabled{cursor:default;opacity:.5}
+.atom.neg{--c:var(--lesion)}
+.atom.neg .nuc{border-radius:20px;transform:rotate(45deg) scale(.82);background:rgba(255,77,120,.1);border:1.5px dashed rgba(255,77,120,.65)}
+.atom.neg .nuc b{transform:rotate(-45deg);font-size:26px}
+.atom.neg.open .nuc{background:rgba(255,77,120,.22);border-style:solid}
+.negpop{margin:8px 0 0;padding:14px 16px;border-radius:var(--r);border:1px solid rgba(255,77,120,.4);background:rgba(60,12,30,.45);display:flex;align-items:center;gap:16px;flex-wrap:wrap;max-width:720px}
+.negpop p{margin:0;font-size:13.5px;color:#f3c9d4;flex:1;min-width:220px}
+.negpop p b{color:var(--ink)}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper button{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,77,120,.6);font-size:18px}
+.stepper output{font:600 24px var(--display);min-width:92px;text-align:center}
+.stepper output small{font:400 13px var(--body);color:var(--dim);margin-left:5px}
+.btn{border:1px solid var(--line2);border-radius:99px;padding:7px 16px;font:500 14px var(--display);letter-spacing:.02em;background:rgba(255,255,255,.04)}
+.btn:hover{border-color:var(--aqua);background:rgba(88,239,201,.08)}
+.btn.go{background:var(--aqua);color:#03202a;border-color:var(--aqua);font-weight:600}
+.btn.go:hover{background:#8af7dd}
+.btn.hot{background:var(--lesion);color:#2a0612;border-color:var(--lesion);font-weight:600}
+.btn.gold{background:var(--gold);color:#2b2204;border-color:var(--gold);font-weight:600}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.sm{padding:4px 12px;font-size:13px}
+
+/* ---------- side panels ---------- */
+.card{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:13px 15px}
+.card h3{font-size:15px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:baseline}
+.card h3 span{font:400 12.5px var(--body);color:var(--dim)}
+.mol{display:flex;gap:12px;align-items:center}
+.mol svg{width:150px;height:150px;flex:none}
+.mol .e{stroke:rgba(230,243,241,.14);stroke-width:1.5;fill:none}
+.mol .e.on{stroke:rgba(230,243,241,.75);stroke-width:2}
+.mol .e.dbl{stroke:var(--gold);stroke-width:5}
+.mol .e.dbl2{stroke:#0b2a36;stroke-width:1.6}
+.mol circle{fill:rgba(6,26,36,.9);stroke-width:1.5;transition:fill .3s}
+.mol text{font:600 10px var(--display);text-anchor:middle;dominant-baseline:central}
+.mol .ctr{font:600 21px var(--display);fill:var(--ink)}
+.mol .ctr2{font:400 10.5px var(--body);fill:var(--dim)}
+.mol.stable svg{filter:drop-shadow(0 0 10px rgba(255,233,166,.55))}
+.rts{flex:1;display:flex;flex-direction:column;gap:9px;font-size:13px;color:var(--dim)}
+.rts div b{display:block;color:var(--ink);font:500 14px var(--display)}
+.rts .ok b{color:var(--gold)}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:2px 0 9px}
+.week div{text-align:center;font-size:11.5px;color:var(--faint)}
+.week i{display:block;height:26px;border-radius:7px;border:1px solid var(--line2);margin-bottom:3px;position:relative}
+.week .act i{background:rgba(88,239,201,.16);border-color:rgba(88,239,201,.4)}
+.week .sol i{background:linear-gradient(180deg,rgba(88,239,201,.75),rgba(88,239,201,.4));border-color:var(--aqua)}
+.week .stb i{background:linear-gradient(180deg,var(--gold),rgba(255,190,85,.6));border-color:var(--gold)}
+.week .shd i{border-color:var(--frost);background:rgba(168,220,255,.14)}
+.week .gap i{border-style:dashed;opacity:.5}
+.week .now{color:var(--ink)} .week .now i{box-shadow:0 0 0 2px rgba(230,243,241,.35)}
+.card p{margin:0;font-size:13px;color:var(--dim)}
+.card p b{color:var(--ink);font-family:var(--display);font-weight:600}
+.repair{border-color:rgba(255,77,120,.5);background:rgba(54,12,30,.5)}
+.repair.fixed{border-color:rgba(255,233,166,.45);background:rgba(50,42,12,.35)}
+.repair ol{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:9px;counter-reset:s}
+.repair li{counter-increment:s;display:grid;grid-template-columns:22px 1fr;gap:9px;font-size:13px;color:var(--dim)}
+.repair li::before{content:counter(s);width:22px;height:22px;border-radius:50%;border:1px solid var(--line2);display:grid;place-items:center;font:600 12px var(--display);color:var(--ink)}
+.repair li.ok::before{content:"✓";background:var(--gold);color:#2b2204;border-color:var(--gold)}
+.repair li b{color:var(--ink);font:500 14px var(--display);display:block}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chips button{border:1px solid var(--line2);border-radius:99px;padding:4px 11px;font-size:12.5px;color:var(--ink)}
+.chips button:hover{border-color:var(--gold)}
+.chips button[aria-pressed="true"]{background:rgba(255,233,166,.18);border-color:var(--gold);color:var(--gold)}
+
+.genechip{position:absolute;right:20px;top:10px;z-index:3;border:1px solid var(--gold);color:var(--gold);border-radius:99px;padding:5px 13px;font:600 13.5px var(--display);letter-spacing:.02em;white-space:nowrap;background:rgba(255,233,166,.1);box-shadow:0 0 18px rgba(255,233,166,.25);animation:chip 2.4s ease-in-out infinite}
+.genechip:hover{background:rgba(255,233,166,.2)}
+.genechip[hidden]{display:none}
+@keyframes chip{50%{box-shadow:0 0 26px rgba(255,233,166,.55)}}
+.gene{border-color:rgba(255,233,166,.55);background:linear-gradient(180deg,rgba(60,50,14,.42),rgba(10,36,48,.66))}
+.gene.pulse{animation:genepulse .9s}
+@keyframes genepulse{30%{box-shadow:0 0 0 4px rgba(255,233,166,.5)}}
+.gopts{display:flex;flex-direction:column;gap:7px;margin:10px 0 11px}
+.gopt{display:grid;grid-template-columns:1fr auto;gap:1px 10px;align-items:center;text-align:left;padding:7px 12px;border-radius:11px;border:1px solid var(--line2);background:rgba(3,18,26,.45);transition:border-color .15s,background .15s}
+.gopt:hover{border-color:var(--gold)}
+.gopt b{font:600 15px var(--display)}
+.gopt span{grid-column:1;font-size:12.5px;color:var(--dim)}
+.gopt .pips{grid-row:1/3;grid-column:2}
+.gopt[aria-pressed="true"]{border-color:var(--gold);background:rgba(255,233,166,.14)}
+.gopt[aria-pressed="true"] b{color:var(--gold)}
+.pips{display:inline-flex;gap:4px;font-style:normal}
+.pips u{width:9px;height:9px;border-radius:50%;border:1.5px solid rgba(255,233,166,.5);text-decoration:none}
+.pips u.on{background:var(--gold);border-color:var(--gold)}
+.pips u.nx{border-style:dashed;border-color:var(--gold)}
+.genome{display:flex;flex-direction:column;gap:9px}
+.genome div{display:grid;grid-template-columns:1fr auto;gap:1px 10px;align-items:center}
+.genome b{font:500 14px var(--display);color:var(--gold)}
+.genome span{grid-column:1/3;font-size:12.5px;color:var(--dim)}
+
+/* ---------- drawer ---------- */
+#scrim{position:fixed;inset:0;background:rgba(2,10,16,.6);backdrop-filter:blur(3px);z-index:20;opacity:0;pointer-events:none;transition:opacity .25s}
+#scrim.on{opacity:1;pointer-events:auto}
+#drawer{position:fixed;top:0;right:0;bottom:0;width:min(780px,96vw);z-index:21;background:linear-gradient(180deg,#082431,#051a26);border-left:1px solid var(--line2);transform:translateX(102%);transition:transform .32s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;box-shadow:-30px 0 80px rgba(0,0,0,.5)}
+#drawer.on{transform:none}
+#drawer header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px 12px}
+#drawer header h2{font-size:25px}
+#drawer .x{width:34px;height:34px;border-radius:50%;border:1px solid var(--line2);font-size:17px;color:var(--dim)}
+#drawer .x:hover{color:var(--ink);border-color:var(--aqua)}
+#drawer .body{padding:4px 24px 30px;overflow:auto;flex:1}
+#drawer h3{font-size:16px;margin:22px 0 4px}
+#drawer h3:first-child{margin-top:4px}
+#drawer p{color:var(--dim);font-size:13.5px;margin:4px 0 10px;max-width:68ch}
+#drawer p b,#drawer li b{color:var(--ink)}
+#drawer code,#drawer pre{font-family:"Cascadia Mono",Consolas,monospace;font-size:12.5px}
+#drawer pre{background:rgba(2,12,18,.75);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;color:#cfe9e6;line-height:1.5;user-select:text}
+#drawer ul{color:var(--dim);font-size:13.5px;padding-left:18px;margin:6px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.status{display:flex;gap:10px;align-items:center;padding:11px 14px;border-radius:12px;border:1px solid var(--line2);background:var(--panel2);font-size:13.5px}
+.status i{width:10px;height:10px;border-radius:50%;flex:none;background:var(--amber);box-shadow:0 0 10px var(--amber)}
+.status.ok i{background:var(--aqua);box-shadow:0 0 10px var(--aqua)}
+.status.bad i{background:var(--lesion);box-shadow:0 0 10px var(--lesion)}
+
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:8px}
+.slot{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);overflow:hidden;display:flex;flex-direction:column}
+.slot .art{aspect-ratio:16/9;background:radial-gradient(circle at 50% 40%,rgba(88,239,201,.1),rgba(2,12,18,.6) 70%);display:grid;place-items:center;position:relative;color:var(--faint);font-size:12.5px;text-align:center;padding:10px}
+.slot.card-kind .art{aspect-ratio:5/7}
+.slot .art video,.slot .art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.slot .art .play{position:absolute;inset:0;display:grid;place-items:center;background:rgba(2,12,18,.25)}
+.slot .art .play span{width:54px;height:54px;border-radius:50%;background:rgba(230,243,241,.92);color:#04202a;display:grid;place-items:center;font-size:20px;padding-left:4px}
+.slot .meta{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px}
+.slot .meta b{font:600 15px var(--display)}
+.slot .meta span{font-size:12.5px;color:var(--dim)}
+.slot.locked{opacity:.55}
+.slot.awaiting{border-color:rgba(255,233,166,.5)}
+.slot.awaiting .art{color:var(--gold)}
+.slot .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font:500 12.5px var(--display);color:var(--dim);padding:6px 8px;border-bottom:1px solid var(--line2);position:sticky;top:0;background:#07212d}
+td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.n,th.n{text-align:right;font-family:var(--display);font-variant-numeric:tabular-nums}
+td.pos{color:var(--aqua)} td.negv{color:var(--lesion)}
+.tag{display:inline-block;padding:0 8px;border-radius:99px;font-size:11.5px;border:1px solid var(--line2);color:var(--dim)}
+.tag.b{border-color:var(--bond);color:var(--bond)} .tag.c{border-color:var(--lesion);color:var(--lesion)}
+.grid2{display:grid;grid-template-columns:1fr 110px;gap:6px 12px;align-items:center;max-width:520px}
+.grid2 label{font-size:13.5px;color:var(--ink)}
+.grid2 label small{display:block;color:var(--faint);font-size:12px}
+.grid2 input{width:100%;text-align:right;font-family:var(--display)}
+textarea{width:100%;min-height:150px;font-family:"Cascadia Mono",Consolas,monospace;font-size:12.5px;line-height:1.45;resize:vertical}
+.hw td input[type=number]{width:74px;text-align:right;font-family:var(--display)}
+.hw .sym{font:600 14px var(--display);width:30px}
+
+/* ---------- overlays ---------- */
+#cine{position:fixed;inset:0;z-index:40;display:none;place-items:center;background:radial-gradient(circle at 50% 45%,rgba(9,52,62,.985),rgba(2,10,16,.995) 72%)}
+#cine.on{display:grid;animation:fadein .35s}
+#cine.lite{pointer-events:none;background:radial-gradient(circle at 50% 45%,rgba(9,52,62,.93),rgba(2,10,16,.5) 75%);animation:litefade 2.7s forwards}
+@keyframes litefade{0%{opacity:0}10%{opacity:1}78%{opacity:1}100%{opacity:0}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+#cine canvas{position:absolute;inset:0;width:100%;height:100%}
+#cine .inner{position:relative;text-align:center;max-width:760px;padding:20px}
+#cine .ph{color:var(--gold);font:500 17px var(--display);letter-spacing:.04em;animation:rise .7s .15s both}
+#cine h1{font-size:clamp(54px,9vw,120px);line-height:1;font-stretch:condensed;margin:6px 0 14px;animation:rise .8s .3s both;background:linear-gradient(180deg,#fff,var(--aqua));-webkit-background-clip:text;background-clip:text;color:transparent}
+#cine p{color:var(--dim);font-size:15.5px;margin:0 auto 20px;max-width:52ch;animation:rise .8s .5s both}
+#cine .row{justify-content:center;animation:rise .8s .7s both}
+@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+#cine video,#cine img.full{position:relative;max-width:min(92vw,1280px);max-height:80vh;border-radius:14px;box-shadow:0 30px 100px rgba(0,0,0,.7);background:#000}
+#cine .close{position:absolute;top:18px;right:22px;z-index:2}
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:30}
+.fly{position:fixed;z-index:31;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;pointer-events:none;background:radial-gradient(circle at 35% 30%,#fff,var(--c) 45%);box-shadow:0 0 22px var(--c),0 0 6px #fff}
+.float{position:fixed;z-index:32;pointer-events:none;font:600 19px var(--display);white-space:nowrap;transform:translate(-50%,-50%);animation:floatup 1.25s cubic-bezier(.2,.8,.3,1) forwards;text-shadow:0 2px 12px rgba(0,0,0,.7)}
+.float.big{font-size:25px}
+@keyframes floatup{0%{opacity:0;transform:translate(-50%,-30%) scale(.7)}14%{opacity:1;transform:translate(-50%,-70%) scale(1.12)}100%{opacity:0;transform:translate(-50%,-250%) scale(1)}}
+#flash{position:fixed;inset:0;z-index:29;pointer-events:none;opacity:0}
+#flash.gold{animation:fl .7s;background:radial-gradient(circle at 50% 40%,rgba(255,233,166,.35),transparent 65%)}
+#flash.red{animation:fl .9s;box-shadow:inset 0 0 160px rgba(255,77,120,.55)}
+@keyframes fl{0%{opacity:0}15%{opacity:1}100%{opacity:0}}
+#toasts{position:fixed;left:50%;top:128px;transform:translateX(-50%);z-index:35;display:flex;flex-direction:column;align-items:center;gap:8px;width:min(560px,92vw);pointer-events:none}
+.toast{pointer-events:auto;padding:11px 15px;border-radius:12px;background:rgba(3,18,26,.96);border:1px solid var(--line2);font-size:13.5px;box-shadow:0 14px 40px rgba(0,0,0,.5);animation:toastin .3s cubic-bezier(.2,.8,.2,1)}
+.toast b{font-family:var(--display);font-weight:600}
+.toast.gold{border-color:var(--gold)} .toast.frost{border-color:var(--frost)} .toast.bad{border-color:var(--lesion)}
+.toast.out{opacity:0;transform:translateY(8px);transition:all .3s}
+@keyframes toastin{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+#modal{position:fixed;inset:0;z-index:50;display:none;place-items:center;background:rgba(2,10,16,.7)}
+#modal.on{display:grid}
+#modal .box{width:min(480px,92vw);background:#082431;border:1px solid var(--line2);border-radius:16px;padding:22px 24px}
+#modal h3{font-size:19px;margin-bottom:8px}
+#modal p{color:var(--dim);font-size:14px;margin:0 0 16px}
+
+@media (min-width:1700px) and (min-height:950px){
+  .atom{width:126px}.nuc{width:86px;height:86px}.nuc svg{width:96px;height:96px}.nuc b{font-size:30px}.atom .nm{font-size:15px}.atom .sub{font-size:13px}
+  .deck{grid-template-columns:minmax(0,1fr) 380px}.mol svg{width:170px;height:170px}
+}
+@media (max-width:1100px){
+  .hud{flex-wrap:wrap;gap:10px 18px}.vitals{flex-direction:row;gap:14px;min-width:0}.key{display:none}
+  .deck{grid-template-columns:1fr}.side{border-left:0;border-top:1px solid var(--line)}
+  body{overflow:hidden auto}.app{height:auto;min-height:100vh}.left,.side{overflow:visible}
+}
+@media (max-width:640px){
+  .field{height:420px}.stagebox{min-width:0;width:100%}.tally{text-align:left}.splitrow{justify-content:flex-start}
+  .atom{width:84px}.nav button{padding:6px 8px}#mini{width:46vw}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="samplebar" id="samplebar" hidden>
+    <span><b>Sample data.</b> These entries are fake, made up so you can try everything before your first real day.</span>
+    <button id="clearSample">Clear the sample and start my strand</button>
+  </div>
+
+  <header class="hud">
+      <div class="brand">
+        <svg viewBox="0 0 26 26" fill="none" stroke-width="2" stroke-linecap="round"><path d="M3 5c8 0 12 16 20 16" stroke="#58efc9"/><path d="M3 21c8 0 12-16 20-16" stroke="#ffbe55"/><path d="M8.5 9.5v7M13 11v4M17.5 9.5v7" stroke="#e6f3f1" stroke-opacity=".55" stroke-width="1.4"/></svg>
+        Strand
+      </div>
+      <button class="stagebox" id="stagebox" title="Open the vault">
+        <div class="emblem" id="emblem"></div>
+        <div class="stagename"><strong id="stageName">Nucleotide</strong><span id="stagePhase">Strand phase</span></div>
+        <div class="stagerow"><div class="stagebar"><i id="stageFill" style="width:0%"></i></div><span class="tonext" id="toNext"></span></div>
+        
+      </button>
+      <div class="spacer"></div>
+      <div class="vitals">
+        <div><b id="chainN">0</b> day chain</div>
+        <div class="shields" id="shields" title="Shields. One is spent automatically on a missed day so the chain survives."></div>
+      </div>
+      <div class="tally">
+        <div class="big"><span id="pts" class="num">0</span><small>points</small></div>
+        <div class="splitrow"><div class="split" id="split"><i></i><u></u></div><span class="kb"><b id="bondedN">0</b> bonded</span><span class="kl"><b id="looseN">0</b> loose</span></div>
+      </div>
+      <nav class="nav" aria-label="Panels">
+        <button data-open="vault" id="navVault">Vault</button>
+        <button data-open="ledger">Ledger</button>
+        <button data-open="settings">Settings</button>
+        <button data-open="data" id="navData">Data</button>
+        <button id="soundBtn" aria-pressed="true" title="Sound on or off">Sound</button>
+      </nav>
+    </header>
+
+  <section class="field" id="field">
+    <canvas id="helix" aria-label="Your strand. Drag to move through time, scroll to zoom, click a day to open it."></canvas>
+    <button class="genechip" id="geneChip" hidden title="A stable week earned a gene. Choose it in the side panel."></button>
+    <canvas id="mini" title="The whole strand. Click to jump."></canvas>
+    <div class="key">
+      <span><i class="k1"></i>bonded for good</span><span><i class="k2"></i>still loose</span><span><i class="k3"></i>shield spent</span><span><i class="k4"></i>damaged</span><span><i class="k5"></i>repaired</span>
+    </div>
+    <div class="fieldctl">
+      <button id="zoomOut" title="Zoom out" aria-label="Zoom out">−</button>
+      <button id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
+      <button id="goToday" class="txt">Today</button>
+    </div>
+    <div id="tip" role="status"></div>
+  </section>
+
+  <main class="deck">
+    <div class="left" id="left"></div>
+    <aside class="side" id="side"></aside>
+  </main>
+</div>
+
+<div id="scrim"></div>
+<aside id="drawer" aria-hidden="true">
+  <header><h2 id="drawerTitle"></h2><button class="x" id="drawerClose" aria-label="Close">✕</button></header>
+  <div class="body" id="drawerBody"></div>
+</aside>
+<div id="cine"></div>
+<div id="modal"><div class="box" id="modalBox"></div></div>
+<div id="flash"></div>
+<canvas id="fx"></canvas>
+<div id="toasts" aria-live="polite"></div>
+<input type="file" id="filePick" hidden>
+
+<script>
+/* ==========================================================================
+   STRAND ENGINE  —  rules only, no screen code.
+   Shared by every module (habits now; nutrition later) so there is one
+   points ledger and one set of rules. Nothing in here touches the page.
+   ========================================================================== */
+(function (root) {
+'use strict';
+
+var SCHEMA = 1;
+
+/* ==========================================================================
+   SETTINGS BLOCK  —  every tunable number lives here.
+   Edit them in the tool under Settings, or directly in the data file under
+   "settings". These are starting values, not laws.
+   ========================================================================== */
+var DEFAULT_SETTINGS = {
+  weekStartsOn: 1,                    // 1 = Monday (so Sunday's Watchtower prep closes the week)
+  backfillDays: 7,                    // how many past days the deck lets you check in for
+
+  points: {
+    integrity: 3,                     // fixed reward for logging a negative honestly
+    bond: 5,                          // a routine completed in one day
+    stableMolecule: 15                // every daily habit done, in every category
+  },
+
+  activeDay: { minCheckins: 1 },      // fewer positives than this = a missed day (a gap)
+  stableDay: { fractionPerCategory: 1 }, // share of each category's daily habits needed for a stable molecule
+
+  stableWeek: {
+    solidDayMinCheckins: 4,           // a "solid day" has at least this many positives
+    minSolidDays: 5                   // a week with this many solid days closes stable: gains bond, a shield is earned
+  },
+
+  shields: { starting: 1, max: 3, perStableWeek: 1 },
+
+  // Reward thinning: as a habit's streak matures, base pay drops and bonus odds rise.
+  // Streak is counted in days (weekly habits: weeks x 7).
+  thinning: [
+    { minStreak: 0,  basePct: 1.00, bonusChance: 0.10 },
+    { minStreak: 7,  basePct: 0.85, bonusChance: 0.16 },
+    { minStreak: 21, basePct: 0.70, bonusChance: 0.22 },
+    { minStreak: 45, basePct: 0.60, bonusChance: 0.30 }
+  ],
+
+  // Variable bonuses. "share" = how often this kind comes up among bonuses,
+  // "mult" = extra points as a multiple of the habit's full weight.
+  bonuses: [
+    { id: 'crit',  name: 'Crit',         share: 0.60, mult: 1 },
+    { id: 'chest', name: 'Vesicle',      share: 0.30, mult: 2 },
+    { id: 'rare',  name: 'Rare isotope', share: 0.10, mult: 4 }
+  ],
+
+  clawback: {
+    dayCap: 40,                       // most that one day can cost
+    weekCap: 90,                      // most that any 7 days in a row can cost
+    rollingDays: 7
+  },
+
+  repair: {
+    rate: 0.60,                       // share of the clawed-back points one recovery action re-earns
+    actions: [
+      { id: 'hydrate', label: 'Drink 16 oz of water' },
+      { id: 'walk',    label: 'Walk for 10 minutes' },
+      { id: 'reflect', label: 'Write down what led to it' },
+      { id: 'still',   label: 'Five extra minutes of mindfulness' }
+    ]
+  },
+
+  // Growth stages. "at" = total points. "media: true" opens a film slot.
+  stages: [
+    { id: 'nucleotide',   phase: 'Strand',   name: 'Nucleotide',     at: 0 },
+    { id: 'codon',        phase: 'Strand',   name: 'Codon',          at: 50 },
+    { id: 'primer',       phase: 'Strand',   name: 'Primer',         at: 130 },
+    { id: 'gene',         phase: 'Strand',   name: 'Gene',           at: 250 },
+    { id: 'operon',       phase: 'Strand',   name: 'Operon',         at: 420 },
+    { id: 'chromatin',    phase: 'Strand',   name: 'Chromatin',      at: 650 },
+    { id: 'chromosome',   phase: 'Strand',   name: 'Chromosome',     at: 900 },
+    { id: 'protocell',    phase: 'Cell',     name: 'Protocell',      at: 1200, media: true },
+    { id: 'membrane',     phase: 'Cell',     name: 'Membrane',       at: 1550 },
+    { id: 'nucleus',      phase: 'Cell',     name: 'Nucleus',        at: 1950 },
+    { id: 'mitochondria', phase: 'Cell',     name: 'Mitochondria',   at: 2400 },
+    { id: 'eukaryote',    phase: 'Cell',     name: 'Eukaryote',      at: 2900, media: true },
+    { id: 'mitosis',      phase: 'Cell',     name: 'Mitosis',        at: 3450 },
+    { id: 'colony',       phase: 'Organism', name: 'Colony',         at: 4050, media: true },
+    { id: 'tissue',       phase: 'Organism', name: 'Tissue',         at: 4700 },
+    { id: 'organ',        phase: 'Organism', name: 'Organ',          at: 5400 },
+    { id: 'nerve',        phase: 'Organism', name: 'Nervous system', at: 6150 },
+    { id: 'embryo',       phase: 'Organism', name: 'Embryo',         at: 6950, media: true },
+    { id: 'organism',     phase: 'Organism', name: 'Organism',       at: 7800, media: true }
+  ],
+  stageOverflowStep: 900,             // after the last stage: a new "Generation" every this many points
+  stageOverflowMediaEvery: 4,         // every Nth generation opens a film slot
+
+  // Genes. Every week that closes stable earns one pick from "traitOfferCount" of these.
+  // A pick is permanent and works from the day it is made. "per" = what one level adds.
+  // effect types: shieldMax, repairRate, bonusChance (needs category), bondPoints, moleculePoints
+  traitOfferCount: 3,
+  traits: [
+    { id: 'membrane',   name: 'Thicker membrane',   text: 'Hold one more shield',                    max: 2, effect: { type: 'shieldMax', per: 1 } },
+    { id: 'ligase',     name: 'Faster ligase',      text: 'A repair re-earns 10% more',              max: 3, effect: { type: 'repairRate', per: 0.10 } },
+    { id: 'healthExpr', name: 'Health promoter',    text: '+5% bonus odds on every health habit',    max: 3, effect: { type: 'bonusChance', category: 'health', per: 0.05 } },
+    { id: 'spiritExpr', name: 'Spiritual promoter', text: '+5% bonus odds on every spiritual habit', max: 3, effect: { type: 'bonusChance', category: 'spiritual', per: 0.05 } },
+    { id: 'bondStrength', name: 'Tighter bonds',    text: '+2 for every routine bond',               max: 3, effect: { type: 'bondPoints', per: 2 } },
+    { id: 'stableCore', name: 'Stable core',        text: '+5 for every stable molecule',            max: 3, effect: { type: 'moleculePoints', per: 5 } }
+  ],
+  bonusChanceCap: 0.6,
+
+  // Milestone compounds. Each one completed opens a collectible card slot.
+  compounds: [
+    { id: 'glycine',    name: 'Glycine',    formula: 'C2H5NO2',        rule: { stableDays: 3 },   note: 'Three stable molecules' },
+    { id: 'ribose',     name: 'Ribose',     formula: 'C5H10O5',        rule: { bondedWeeks: 1 },  note: 'First week bonded' },
+    { id: 'adenine',    name: 'Adenine',    formula: 'C5H5N5',         rule: { stableDays: 10 },  note: 'Ten stable molecules' },
+    { id: 'atp',        name: 'ATP',        formula: 'C10H16N5O13P3',  rule: { chain: 14 },       note: 'A 14-day chain' },
+    { id: 'ligase',     name: 'Ligase',     formula: 'repair enzyme',  rule: { repairs: 3 },      note: 'Three pairs repaired' },
+    { id: 'serotonin',  name: 'Serotonin',  formula: 'C10H12N2O',      rule: { stableDays: 25 },  note: 'Twenty-five stable molecules' },
+    { id: 'histone',    name: 'Histone',    formula: 'packing protein', rule: { bondedWeeks: 4 }, note: 'Four weeks bonded' },
+    { id: 'telomerase', name: 'Telomerase', formula: 'end keeper',     rule: { chain: 60 },       note: 'A 60-day chain' }
+  ]
+};
+/* ======================= end of settings block ============================ */
+
+/* The habits. Content is settled; weights are yours to change. */
+var DEFAULT_HABITS = [
+  { id: 'sleep',       name: 'Sleep, 7 or more hours',            short: 'Sleep',       sym: 'Sl', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 10, hue: 222 },
+  { id: 'water',       name: 'Water, 32 oz',                      short: 'Water',       sym: 'Aq', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 5,  hue: 192 },
+  { id: 'fasting',     name: 'Intermittent fasting window kept',  short: 'Fasting',     sym: 'Fa', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 10, hue: 172 },
+  { id: 'pushups',     name: 'Push-ups',                          short: 'Push-ups',    sym: 'Pu', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 8,  hue: 152 },
+  { id: 'gym',         name: 'Gym session',                       short: 'Gym',         sym: 'Gy', category: 'health',    kind: 'positive', cadence: 'weekly', weeklyTarget: 2, beyondTarget: true, weight: 20, hue: 136 },
+  { id: 'mindfulness', name: 'Daily mindfulness session',         short: 'Mindfulness', sym: 'Mi', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 8,  hue: 204 },
+  { id: 'vitamins',    name: 'Vitamins and supplements',          short: 'Vitamins',    sym: 'Vi', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 3,  hue: 162 },
+  { id: 'alcohol',     name: 'Alcohol intake',                    short: 'Alcohol',     sym: 'Et', category: 'health',    kind: 'negative', cadence: 'event',  weight: 12, unit: 'drink', hue: 344 },
+  { id: 'dailyText',   name: 'Daily text read',                   short: 'Daily text',  sym: 'Dt', category: 'spiritual', kind: 'positive', cadence: 'daily',  weight: 5,  hue: 46 },
+  { id: 'bible',       name: 'Daily Bible reading',               short: 'Bible reading', sym: 'Br', category: 'spiritual', kind: 'positive', cadence: 'daily', weight: 8, hue: 36 },
+  { id: 'study',       name: 'Weekly personal study project',     short: 'Personal study', sym: 'Ps', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 20, hue: 24 },
+  { id: 'midweek',     name: 'Midweek meeting prep',              short: 'Midweek prep', sym: 'Mw', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 15, hue: 54 },
+  { id: 'watchtower',  name: 'Watchtower study prep for Sunday',  short: 'Watchtower prep', sym: 'Wt', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 15, hue: 14 }
+];
+
+/* Routines: habits that bond when all are done the same day. */
+var DEFAULT_ROUTINES = [
+  { id: 'morning', name: 'Morning stack', habits: ['sleep', 'dailyText', 'vitamins', 'pushups'] },
+  { id: 'evening', name: 'Evening stack', habits: ['bible', 'mindfulness', 'fasting', 'water'] }
+];
+
+/* ------------------------------ helpers ---------------------------------- */
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+function toISO(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function parseISO(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+function addDays(s, n) { var d = parseISO(s); d.setDate(d.getDate() + n); return toISO(d); }
+function dow(s) { return parseISO(s).getDay(); }
+function weekStart(s, ws) { return addDays(s, -((dow(s) - ws + 7) % 7)); }
+function daysBetween(a, b) { return Math.round((parseISO(b) - parseISO(a)) / 86400000); }
+function validDate(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && toISO(parseISO(s)) === s; }
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function roman(n) { var r = '', m = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]; m.forEach(function (p) { while (n >= p[0]) { r += p[1]; n -= p[0]; } }); return r; }
+function mergeMissing(target, defaults) {
+  Object.keys(defaults).forEach(function (k) {
+    if (target[k] === undefined) target[k] = clone(defaults[k]);
+    else if (defaults[k] && typeof defaults[k] === 'object' && !Array.isArray(defaults[k]) && target[k] && typeof target[k] === 'object') mergeMissing(target[k], defaults[k]);
+  });
+  return target;
+}
+
+/* ------------------------------ data file -------------------------------- */
+function newData() {
+  var now = new Date().toISOString();
+  return {
+    app: 'strand', schema: SCHEMA,
+    meta: { createdAt: now, updatedAt: now, sample: false, label: '', seq: 0, rowSeq: 0 },
+    settings: clone(DEFAULT_SETTINGS),
+    habits: clone(DEFAULT_HABITS),
+    routines: clone(DEFAULT_ROUTINES),
+    log: [],          // every check-in, positive and negative
+    ledger: [],       // every point movement, shared by all modules
+    rolls: {},        // the dice already thrown for a habit on a day (so undo/redo cannot re-roll)
+    milestones: [],   // stages reached and compounds completed
+    traits: [],       // genes expressed: one permanent pick per stable week
+    media: [],        // media index: one slot per milestone that earned art
+    importedIds: [],  // import IDs already merged
+    derived: {},      // snapshot recomputed from the log on every save (read-only convenience)
+    modules: { habits: { version: 1 }, nutrition: null }   // nutrition is reserved, not built
+  };
+}
+
+function normalize(d) {
+  if (!d || d.app !== 'strand') throw new Error('This is not a Strand data file.');
+  if (d.schema > SCHEMA) throw new Error('This data file was made by a newer version of Strand.');
+  var blank = newData();
+  ['meta', 'settings', 'habits', 'routines', 'log', 'ledger', 'rolls', 'milestones', 'traits', 'media', 'importedIds', 'derived', 'modules'].forEach(function (k) {
+    if (d[k] === undefined) d[k] = blank[k];
+  });
+  mergeMissing(d.settings, DEFAULT_SETTINGS);
+  mergeMissing(d.meta, blank.meta);
+  return d;
+}
+
+function habitMap(data) { var m = {}; data.habits.forEach(function (h) { m[h.id] = h; }); return m; }
+function addRow(data, row) {
+  row.id = 'P' + (++data.meta.rowSeq);
+  row.module = row.module || 'habits';
+  if (row.amount > 0) row.remaining = row.amount;
+  data.ledger.push(row);
+  return row;
+}
+
+/* ------------------------------ stages ----------------------------------- */
+function stageList(S, points) {
+  var list = S.stages.slice().sort(function (a, b) { return a.at - b.at; });
+  var last = list[list.length - 1], n = 1;
+  while (list[list.length - 1].at <= points + S.stageOverflowStep) {
+    list.push({ id: 'generation-' + (n + 1), phase: last.phase, name: 'Generation ' + roman(n + 1), at: last.at + S.stageOverflowStep * n, media: n % S.stageOverflowMediaEvery === 0, overflow: true });
+    n++;
+  }
+  return list;
+}
+function thinTier(S, streakDays) { var t = S.thinning[0]; S.thinning.forEach(function (x) { if (streakDays >= x.minStreak) t = x; }); return t; }
+function pickBonus(S, r) {
+  var tot = S.bonuses.reduce(function (a, b) { return a + b.share; }, 0), acc = 0;
+  for (var i = 0; i < S.bonuses.length; i++) { acc += S.bonuses[i].share / tot; if (r < acc) return S.bonuses[i]; }
+  return S.bonuses[S.bonuses.length - 1];
+}
+
+/* ------------------------------ genes (traits) --------------------------- */
+/* fxAt: what the expressed genes add, counting only picks made on or before "date". */
+function fxAt(data, date, asOf) {
+  var fx = { levels: {}, shieldMaxAdd: 0, repairAdd: 0, bonus: {}, bondAdd: 0, moleculeAdd: 0 };
+  (data.traits || []).forEach(function (p) {
+    if (p.pickedOn > date || (asOf != null && p.seq > asOf)) return;
+    var t = data.settings.traits.find(function (x) { return x.id === p.traitId; });
+    fx.levels[p.traitId] = (fx.levels[p.traitId] || 0) + 1;
+    if (!t || !t.effect) return;
+    var e = t.effect;
+    if (e.type === 'shieldMax') fx.shieldMaxAdd += e.per;
+    else if (e.type === 'repairRate') fx.repairAdd += e.per;
+    else if (e.type === 'bonusChance') fx.bonus[e.category] = (fx.bonus[e.category] || 0) + e.per;
+    else if (e.type === 'bondPoints') fx.bondAdd += e.per;
+    else if (e.type === 'moleculePoints') fx.moleculeAdd += e.per;
+  });
+  return fx;
+}
+/* The offer for a week is fixed by that week's date, so reloading cannot re-deal it. */
+function traitOffers(data, weekEnd, levels) {
+  var open = data.settings.traits.filter(function (t) { return (levels[t.id] || 0) < t.max; });
+  var seed = 0; for (var i = 0; i < weekEnd.length; i++) seed = (seed * 31 + weekEnd.charCodeAt(i)) | 0;
+  var rng = mulberry32(seed ^ 0x9E3779B9), pool = open.slice(), out = [];
+  while (pool.length && out.length < data.settings.traitOfferCount) out.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+  return out;
+}
+
+/* ==========================================================================
+   derive — rebuilds everything that can be rebuilt from the log and ledger:
+   the strand, gaps, shields, chain, streaks, bonding, stage. The strand on
+   screen is drawn from this and nothing else.
+   opt.asOfSeq: rebuild the strand as it stood at an earlier moment.
+   ========================================================================== */
+function derive(data, today, opt) {
+  opt = opt || {};
+  var S = data.settings, asOf = opt.asOfSeq == null ? Infinity : opt.asOfSeq;
+  var H = habitMap(data);
+  var log = data.log.filter(function (e) { return e.seq <= asOf && e.date <= today; })
+    .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.seq - b.seq; });
+  var rows = data.ledger.filter(function (r) { return r.seq <= asOf; });
+
+  var first = log.length ? log[0].date : today;
+  var days = [], byDate = {};
+  for (var d = first; d <= today; d = addDays(d, 1)) {
+    var day = { date: d, entries: [], pos: 0, neg: 0, done: {}, state: 'open', solid: false, stable: false, bonds: [], slots: [] };
+    days.push(day); byDate[d] = day;
+  }
+  log.forEach(function (e) {
+    var dy = byDate[e.date]; dy.entries.push(e);
+    var h = H[e.habitId] || { id: e.habitId, sym: '?', category: 'health', hue: 0 };
+    var repaired = e.kind === 'negative' && e.repair && e.repair.seq <= asOf;
+    if (e.kind === 'negative') dy.neg++; else { dy.pos++; dy.done[e.habitId] = true; }
+    dy.slots.push({
+      t: e.kind === 'negative' ? (repaired ? 'repaired' : 'damaged') : 'pair',
+      habitId: e.habitId, cat: h.category, logId: e.id, seq: e.seq,
+      bonus: e.bonus ? e.bonus.type : null, amount: e.amount || null
+    });
+  });
+
+  var dailyByCat = {};
+  data.habits.forEach(function (h) { if (h.kind === 'positive' && h.cadence === 'daily' && !h.archived) (dailyByCat[h.category] = dailyByCat[h.category] || []).push(h.id); });
+  function isStable(dy) {
+    var cats = Object.keys(dailyByCat); if (!cats.length) return false;
+    return cats.every(function (c) {
+      var ids = dailyByCat[c], need = Math.ceil(ids.length * S.stableDay.fractionPerCategory);
+      return ids.filter(function (id) { return dy.done[id]; }).length >= need;
+    });
+  }
+
+  var shields = S.shields.starting, chain = 0, bestChain = 0, bondedThrough = null, bondedWeeks = 0;
+  var weeks = [], wk = null, shielded = [], gaps = [], stableDays = 0;
+  days.forEach(function (dy) {
+    var ws = weekStart(dy.date, S.weekStartsOn);
+    if (!wk || wk.start !== ws) { wk = { start: ws, end: addDays(ws, 6), solid: 0, active: 0, stable: false, closed: false }; weeks.push(wk); }
+    dy.weekStart = ws;
+    var isToday = dy.date === today;
+    if (dy.pos >= S.activeDay.minCheckins) { chain++; dy.state = 'active'; wk.active++; if (chain > bestChain) bestChain = chain; }
+    else if (isToday) { dy.state = 'open'; }
+    else if (chain > 0 && shields > 0) { shields--; dy.state = 'shielded'; shielded.push(dy.date); }
+    else { chain = 0; dy.state = 'gap'; gaps.push(dy.date); }
+    dy.solid = dy.pos >= S.stableWeek.solidDayMinCheckins; if (dy.solid) wk.solid++;
+    dy.stable = isStable(dy); if (dy.stable) stableDays++;
+    data.routines.forEach(function (r) { if (r.habits.length && r.habits.every(function (id) { return dy.done[id]; })) dy.bonds.push(r.id); });
+    if (dy.date === wk.end && wk.end < today) {
+      wk.closed = true; wk.stable = wk.solid >= S.stableWeek.minSolidDays;
+      if (wk.stable) {
+        var cap = S.shields.max + fxAt(data, wk.end, opt.asOfSeq).shieldMaxAdd;
+        shields = Math.min(Math.max(cap, shields), shields + S.shields.perStableWeek); bondedThrough = wk.end; bondedWeeks++;
+      }
+    }
+  });
+
+  // per-habit streaks (used for reward thinning)
+  var streaks = {};
+  data.habits.forEach(function (h) {
+    if (h.kind !== 'positive') return;
+    var n = 0, i;
+    if (h.cadence === 'weekly') {
+      var count = {};
+      log.forEach(function (e) { if (e.habitId === h.id) { var w = weekStart(e.date, S.weekStartsOn); count[w] = (count[w] || 0) + 1; } });
+      for (i = weeks.length - 1; i >= 0; i--) {
+        var met = (count[weeks[i].start] || 0) >= (h.weeklyTarget || 1);
+        if (met) n++; else if (!weeks[i].closed) continue; else break;
+      }
+      streaks[h.id] = { n: n, unit: 'week', days: n * 7 };
+    } else {
+      for (i = days.length - 1; i >= 0; i--) {
+        var dd = days[i];
+        if (dd.done[h.id]) n++; else if (dd.date === today || dd.state === 'shielded') continue; else break;
+      }
+      streaks[h.id] = { n: n, unit: 'day', days: n };
+    }
+  });
+
+  // points
+  var points = 0, loose = 0, bonded = 0, clawedTotal = 0, reearned = 0;
+  rows.forEach(function (r) {
+    points += r.amount;
+    if (r.amount > 0) { if (bondedThrough && r.date <= bondedThrough) bonded += r.remaining; else loose += r.remaining; if (r.source === 'repair') reearned += r.amount; }
+    else clawedTotal += -r.amount;
+  });
+
+  // stage (never demotes: reached stages are recorded as milestones)
+  var list = stageList(S, points), idx = 0, hw = 0;
+  list.forEach(function (s, i) { if (points >= s.at) idx = i; });
+  data.milestones.forEach(function (m) { if (m.kind === 'stage' && m.atSeq <= asOf) { var i = list.findIndex(function (s) { return s.id === m.ref; }); if (i > hw) hw = i; } });
+  idx = Math.max(idx, hw);
+  var cur = list[idx], next = list[idx + 1];
+  var progress = Math.max(0, Math.min(1, (points - cur.at) / (next.at - cur.at)));
+
+  // genes: effects in force today, and any stable week still waiting for its pick
+  var fx = fxAt(data, today, opt.asOfSeq);
+  var picked = {}; (data.traits || []).forEach(function (p) { picked[p.week] = true; });
+  var waiting = weeks.filter(function (w) { return w.closed && w.stable && !picked[w.end]; }).map(function (w) { return w.end; });
+  var offers = waiting.length ? traitOffers(data, waiting[0], fx.levels) : [];
+  if (waiting.length && !offers.length) waiting = [];        // every gene is fully expressed
+
+  var basePairs = 0, damaged = 0, repaired = 0;
+  days.forEach(function (dy) { dy.slots.forEach(function (s) { basePairs++; if (s.t === 'damaged') damaged++; if (s.t === 'repaired') repaired++; }); });
+
+  return {
+    today: today, first: first, days: days, byDate: byDate, weeks: weeks,
+    shields: shields, shieldsMax: S.shields.max + fx.shieldMaxAdd, chain: chain, bestChain: bestChain,
+    fx: { levels: fx.levels, bond: S.points.bond + fx.bondAdd, molecule: S.points.stableMolecule + fx.moleculeAdd, repairRate: Math.min(1, S.repair.rate + fx.repairAdd), bonus: fx.bonus },
+    genes: { waiting: waiting, offers: offers, expressed: (data.traits || []).length },
+    bondedThrough: bondedThrough, bondedWeeks: bondedWeeks, shieldedDates: shielded, gapDates: gaps,
+    streaks: streaks, points: points, loose: loose, bonded: bonded, clawedTotal: clawedTotal, reearned: reearned,
+    stage: { index: idx, list: list, cur: cur, next: next, progress: progress, toNext: Math.max(0, next.at - points) },
+    counts: { days: days.length, basePairs: basePairs, gaps: gaps.length, shielded: shielded.length, damaged: damaged, repaired: repaired, stableDays: stableDays, bondedWeeks: bondedWeeks },
+    dailyByCat: dailyByCat
+  };
+}
+
+function snapshot(der) {
+  var st = {}; Object.keys(der.streaks).forEach(function (k) { st[k] = der.streaks[k].n + ' ' + der.streaks[k].unit + (der.streaks[k].n === 1 ? '' : 's'); });
+  return {
+    note: 'Rebuilt from the log and ledger on every save. Editing this block changes nothing.',
+    asOf: der.today, points: der.points, loose: der.loose, bonded: der.bonded, bondedThrough: der.bondedThrough,
+    stage: der.stage.cur.id, shields: der.shields, chain: der.chain, bestChain: der.bestChain,
+    shieldedDates: der.shieldedDates.slice(), streaks: st, genes: clone(der.fx.levels), genesWaiting: der.genes.waiting.length, strand: clone(der.counts)
+  };
+}
+
+/* ------------------------------ milestones ------------------------------- */
+function compoundMet(rule, der) {
+  return Object.keys(rule).every(function (k) {
+    var v = k === 'stableDays' ? der.counts.stableDays : k === 'bondedWeeks' ? der.bondedWeeks : k === 'chain' ? der.bestChain : k === 'repairs' ? der.counts.repaired : 0;
+    return v >= rule[k];
+  });
+}
+function syncMilestones(data, der, seq, date) {
+  var added = [];
+  function has(id) { return data.milestones.some(function (m) { return m.id === id; }); }
+  function add(m, mediaKind) {
+    data.milestones.push(m); added.push(m);
+    if (mediaKind && !data.media.some(function (x) { return x.id === m.id; }))
+      data.media.push({ id: m.id, kind: mediaKind, status: 'awaiting', file: null, unlockedOn: date });
+  }
+  for (var i = 1; i <= der.stage.index; i++) {
+    var s = der.stage.list[i], id = 'stage-' + s.id;
+    if (!has(id)) add({ id: id, kind: 'stage', ref: s.id, name: s.name, phase: s.phase, phaseChange: der.stage.list[i - 1].phase !== s.phase, reachedOn: date, atSeq: seq, media: !!s.media }, s.media ? 'video' : null);
+  }
+  data.settings.compounds.forEach(function (c) {
+    var id = 'compound-' + c.id;
+    if (!has(id) && compoundMet(c.rule, der)) add({ id: id, kind: 'compound', ref: c.id, name: c.name, formula: c.formula, note: c.note, reachedOn: date, atSeq: seq, media: true }, 'image');
+  });
+  return added;
+}
+function finish(data, today, seq, date, events) {
+  var der = derive(data, today);
+  syncMilestones(data, der, seq, date).forEach(function (m) { events.push({ type: m.kind === 'stage' ? 'stage' : 'compound', milestone: m }); });
+  return der;
+}
+
+/* ==========================================================================
+   checkIn — one tap. Positive habits earn; negative habits go to logNegative.
+   ========================================================================== */
+function checkIn(data, habitId, date, opt) {
+  opt = opt || {};
+  var S = data.settings, today = opt.today || date, rng = opt.rng || Math.random;
+  var now = opt.now || new Date().toISOString();
+  var h = data.habits.find(function (x) { return x.id === habitId; });
+  if (!h) return { error: 'Unknown habit: ' + habitId };
+  if (!validDate(date)) return { error: 'Bad date: ' + date };
+  if (date > today) return { error: 'That day has not happened yet.' };
+  if (h.kind === 'negative') return logNegative(data, h, date, opt, today, now);
+
+  if (data.log.some(function (e) { return e.habitId === habitId && e.date === date; })) return { error: h.short + ' is already logged for that day.', code: 'duplicate' };
+  if (h.cadence === 'weekly' && !h.beyondTarget) {
+    var ws = weekStart(date, S.weekStartsOn), we = addDays(ws, 6);
+    var n = data.log.filter(function (e) { return e.habitId === habitId && e.date >= ws && e.date <= we; }).length;
+    if (n >= (h.weeklyTarget || 1)) return { error: h.short + ' is already done for that week.', code: 'duplicate' };
+  }
+
+  var before = derive(data, today);
+  var streak = before.streaks[habitId] ? before.streaks[habitId].days : 0;
+  var tier = thinTier(S, streak), fx = before.fx;
+  var chance = Math.min(S.bonusChanceCap, tier.bonusChance + (fx.bonus[h.category] || 0));
+  var base = Math.max(1, Math.round(h.weight * tier.basePct));
+
+  var key = date + '|' + habitId, roll = data.rolls[key];
+  if (!roll) { roll = [Math.round(rng() * 1e6) / 1e6, Math.round(rng() * 1e6) / 1e6]; data.rolls[key] = roll; }
+  var bonus = null;
+  if (roll[0] < chance) { var b = pickBonus(S, roll[1]); bonus = { type: b.id, name: b.name, points: Math.max(1, Math.round(h.weight * b.mult)) }; }
+
+  var seq = ++data.meta.seq;
+  var entry = { id: 'L' + seq, seq: seq, module: 'habits', date: date, habitId: habitId, kind: 'positive', points: base, streakAtLog: streak, loggedAt: now, loggedOn: today };
+  if (bonus) entry.bonus = bonus;
+  if (opt.importId) entry.importId = opt.importId;
+  if (opt.note) entry.note = String(opt.note);
+  data.log.push(entry);
+
+  var events = [{ type: 'checkin', habit: h, points: base, basePct: tier.basePct, entry: entry }];
+  addRow(data, { seq: seq, date: date, source: 'checkin', logId: entry.id, habitId: habitId, amount: base });
+  if (bonus) { addRow(data, { seq: seq, date: date, source: 'bonus', logId: entry.id, habitId: habitId, amount: bonus.points, note: bonus.name }); events.push({ type: 'bonus', bonus: bonus, habit: h }); }
+
+  var done = {}; data.log.forEach(function (e) { if (e.date === date && e.kind === 'positive') done[e.habitId] = true; });
+  data.routines.forEach(function (r) {
+    if (r.habits.indexOf(habitId) < 0 || !r.habits.every(function (id) { return done[id]; })) return;
+    if (data.ledger.some(function (x) { return x.source === 'bond' && x.ref === r.id && x.date === date; })) return;
+    addRow(data, { seq: seq, date: date, source: 'bond', ref: r.id, logId: entry.id, amount: fx.bond, note: r.name });
+    events.push({ type: 'bond', routine: r, points: fx.bond });
+  });
+  var mid = derive(data, today);
+  if (mid.byDate[date] && mid.byDate[date].stable && !data.ledger.some(function (x) { return x.source === 'molecule' && x.date === date; })) {
+    addRow(data, { seq: seq, date: date, source: 'molecule', logId: entry.id, amount: fx.molecule, note: 'Stable molecule' });
+    events.push({ type: 'molecule', points: fx.molecule });
+  }
+  if (h.cadence === 'weekly') {
+    var ws2 = weekStart(date, S.weekStartsOn), we2 = addDays(ws2, 6);
+    var cnt = data.log.filter(function (e) { return e.habitId === habitId && e.date >= ws2 && e.date <= we2; }).length;
+    if (cnt === (h.weeklyTarget || 1)) events.push({ type: 'weeklyTarget', habit: h });
+  }
+  var der = finish(data, today, seq, date, events);
+  return { entry: entry, events: events, derived: der };
+}
+
+/* ==========================================================================
+   logNegative — the behavior costs; the honesty never does.
+   1. integrity reward, always, and it can never be clawed back
+   2. clawback: capped per day and per rolling week, loose gains first
+      (newest first), bonded structure never touched
+   ========================================================================== */
+function logNegative(data, h, date, opt, today, now) {
+  var S = data.settings, units = Math.max(1, Math.round(Number(opt.amount) || 1));
+  var before = derive(data, today);
+  var seq = ++data.meta.seq;
+  var entry = { id: 'L' + seq, seq: seq, module: 'habits', date: date, habitId: h.id, kind: 'negative', amount: units, unit: h.unit || 'unit', loggedAt: now, loggedOn: today };
+  if (opt.importId) entry.importId = opt.importId;
+  if (opt.note) entry.note = String(opt.note);
+  data.log.push(entry);
+  var events = [{ type: 'negative', habit: h, entry: entry }];
+
+  addRow(data, { seq: seq, date: date, source: 'integrity', logId: entry.id, habitId: h.id, amount: S.points.integrity, protected: true, note: 'Honest log' });
+  events.push({ type: 'integrity', points: S.points.integrity });
+
+  var requested = Math.round(h.weight * units);
+  var claws = data.ledger.filter(function (r) { return r.source === 'clawback'; });
+  var dayTaken = 0; claws.forEach(function (r) { if (r.date === date) dayTaken += -r.amount; });
+  var worstWindow = 0, span = S.clawback.rollingDays;
+  for (var s = -(span - 1); s <= 0; s++) {
+    var a = addDays(date, s), b = addDays(a, span - 1), sum = 0;
+    claws.forEach(function (r) { if (r.date >= a && r.date <= b) sum += -r.amount; });
+    if (sum > worstWindow) worstWindow = sum;
+  }
+  var allowed = Math.max(0, Math.min(requested, S.clawback.dayCap - dayTaken, S.clawback.weekCap - worstWindow));
+
+  var bt = before.bondedThrough;
+  var loose = data.ledger.filter(function (r) { return r.amount > 0 && !r.protected && r.remaining > 0 && !(bt && r.date <= bt); })
+    .sort(function (x, y) { return x.date > y.date ? -1 : x.date < y.date ? 1 : y.seq - x.seq || (x.id < y.id ? 1 : -1); });
+  var left = allowed, from = [];
+  for (var i = 0; i < loose.length && left > 0; i++) {
+    var take = Math.min(left, loose[i].remaining);
+    loose[i].remaining -= take; left -= take; from.push({ id: loose[i].id, amount: take });
+  }
+  var taken = allowed - left;
+  if (taken > 0) addRow(data, { seq: seq, date: date, source: 'clawback', logId: entry.id, habitId: h.id, amount: -taken, from: from, note: units + ' ' + entry.unit + (units === 1 ? '' : 's') });
+  entry.clawback = { requested: requested, allowedByCaps: allowed, taken: taken };
+  events.push({ type: 'clawback', requested: requested, allowed: allowed, taken: taken });
+  var der = finish(data, today, seq, date, events);
+  return { entry: entry, events: events, derived: der };
+}
+
+/* repair — same day as the log. Re-earns a share of what was clawed and
+   marks the pair repaired for good. */
+function repair(data, logId, actionId, opt) {
+  opt = opt || {};
+  var S = data.settings, e = data.log.find(function (x) { return x.id === logId; });
+  var today = opt.today || (e && e.loggedOn);
+  if (!e || e.kind !== 'negative') return { error: 'Nothing to repair there.' };
+  if (e.repair) return { error: 'That pair is already repaired.' };
+  if (e.loggedOn !== today) return { error: 'The repair window closed at the end of the day it was logged.' };
+  var action = S.repair.actions.find(function (a) { return a.id === actionId; }) || { id: actionId, label: actionId };
+  var seq = ++data.meta.seq;
+  var re = Math.round(((e.clawback && e.clawback.taken) || 0) * derive(data, today).fx.repairRate);
+  if (re > 0) addRow(data, { seq: seq, date: today, source: 'repair', logId: e.id, habitId: e.habitId, amount: re, note: action.label });
+  e.repair = { action: action.id, label: action.label, at: opt.now || new Date().toISOString(), seq: seq, reearned: re };
+  var events = [{ type: 'repair', entry: e, points: re, action: action }];
+  var der = finish(data, today, seq, today, events);
+  return { entry: e, events: events, derived: der };
+}
+
+/* pickTrait — express one gene for a stable week. Permanent, and it only works
+   from the day it is picked, so it never rewrites the strand behind it. */
+function pickTrait(data, weekEnd, traitId, opt) {
+  opt = opt || {};
+  var today = opt.today, der = derive(data, today);
+  if (der.genes.waiting.indexOf(weekEnd) < 0) return { error: 'That week has no gene waiting.' };
+  if (der.genes.waiting[0] !== weekEnd) return { error: 'Choose for the earlier week first.' };
+  var t = der.genes.offers.find(function (x) { return x.id === traitId; });
+  if (!t) return { error: 'That gene is not on offer for this week.' };
+  var seq = ++data.meta.seq;
+  var pick = { id: 'G' + seq, seq: seq, week: weekEnd, traitId: traitId, name: t.name, pickedOn: today, at: opt.now || new Date().toISOString() };
+  data.traits.push(pick);
+  var after = derive(data, today);
+  return { pick: pick, trait: t, level: after.fx.levels[traitId], derived: after };
+}
+
+/* removeEntry — undo a mistaken tap. Only while its gains are untouched. */
+function removeEntry(data, logId, today) {
+  var e = data.log.find(function (x) { return x.id === logId; });
+  if (!e) return { error: 'Entry not found.' };
+  var der = derive(data, today), bt = der.bondedThrough;
+  var mine = data.ledger.filter(function (r) { return r.logId === logId; });
+  if (e.kind === 'negative') {
+    if (e.repair) return { error: 'This entry was repaired, so it stays on the strand.' };
+    if (e.loggedOn !== today) return { error: 'Only entries logged today can be removed.' };
+    var claw = mine.find(function (r) { return r.source === 'clawback'; });
+    if (claw) claw.from.forEach(function (f) { var r = data.ledger.find(function (x) { return x.id === f.id; }); if (r) r.remaining += f.amount; });
+  } else {
+    // a bond or stable-molecule reward that depended on this habit goes with it
+    data.ledger.forEach(function (r) {
+      if (r.date !== e.date || mine.indexOf(r) >= 0) return;
+      if (r.source === 'molecule') mine.push(r);
+      if (r.source === 'bond') { var rt = data.routines.find(function (x) { return x.id === r.ref; }); if (rt && rt.habits.indexOf(e.habitId) >= 0) mine.push(r); }
+    });
+    var h = data.habits.find(function (x) { return x.id === e.habitId; });
+    if (!(h && h.cadence === 'daily')) mine = mine.filter(function (r) { return r.source !== 'molecule' || r.logId === logId; });
+    var touched = mine.some(function (r) { return r.amount > 0 && (r.remaining !== r.amount || (bt && r.date <= bt)); });
+    if (touched) return { error: 'These points have already bonded or been clawed back, so the entry stays.' };
+  }
+  data.ledger = data.ledger.filter(function (r) { return mine.indexOf(r) < 0; });
+  data.log = data.log.filter(function (x) { return x.id !== logId; });
+  var dead = data.milestones.filter(function (m) { return m.atSeq === e.seq; }).map(function (m) { return m.id; });
+  data.milestones = data.milestones.filter(function (m) { return dead.indexOf(m.id) < 0; });
+  data.media = data.media.filter(function (m) { return dead.indexOf(m.id) < 0 || m.status === 'imported'; });
+  return { removed: e, derived: derive(data, today) };
+}
+
+/* ==========================================================================
+   importEntries — merge entries dictated elsewhere. See NOTES in the tool.
+   ========================================================================== */
+function importEntries(data, payload, opt) {
+  opt = opt || {};
+  var today = opt.today, list = Array.isArray(payload) ? payload : (payload && Array.isArray(payload.entries)) ? payload.entries : (payload && payload.importId) ? [payload] : null;
+  if (!list) return { error: 'No entries found. Expected { "strandImport": 1, "entries": [ ... ] }.' };
+  var out = { added: [], skipped: [], errors: [], events: [] };
+  function find(v) {
+    var k = String(v || '').trim().toLowerCase();
+    return data.habits.find(function (h) { return h.id.toLowerCase() === k || h.short.toLowerCase() === k || h.name.toLowerCase() === k || h.sym.toLowerCase() === k; });
+  }
+  list.slice().sort(function (a, b) { return String(a.date) < String(b.date) ? -1 : 1; }).forEach(function (it, i) {
+    var label = it && it.importId ? it.importId : 'entry ' + (i + 1);
+    if (!it || !it.importId) { out.errors.push(label + ': missing importId'); return; }
+    if (data.importedIds.indexOf(it.importId) >= 0) { out.skipped.push(it.importId + ': already imported'); return; }
+    var h = find(it.habit || it.habitId);
+    if (!h) { out.errors.push(label + ': unknown habit "' + (it.habit || it.habitId) + '"'); return; }
+    if (!validDate(it.date)) { out.errors.push(label + ': bad date "' + it.date + '" (use YYYY-MM-DD)'); return; }
+    if (it.date > today) { out.errors.push(label + ': date is in the future'); return; }
+    var r = checkIn(data, h.id, it.date, { today: today, amount: it.amount, note: it.note, importId: it.importId, rng: opt.rng });
+    if (r.error) {
+      if (r.code === 'duplicate') { data.importedIds.push(it.importId); out.skipped.push(it.importId + ': ' + r.error); }
+      else out.errors.push(label + ': ' + r.error);
+      return;
+    }
+    data.importedIds.push(it.importId); out.added.push(r.entry); out.events = out.events.concat(r.events);
+  });
+  out.derived = derive(data, today);
+  return out;
+}
+
+/* ==========================================================================
+   mediaRequest — what Claude needs to render art for a milestone: the strand
+   exactly as it stood at that moment.
+   ========================================================================== */
+function mediaRequest(data, milestoneId) {
+  var m = data.milestones.find(function (x) { return x.id === milestoneId; });
+  if (!m) return null;
+  var der = derive(data, m.reachedOn, { asOfSeq: m.atSeq });
+  var slot = data.media.find(function (x) { return x.id === m.id; });
+  var kind = slot ? slot.kind : (m.kind === 'stage' ? 'video' : 'image');
+  var legend = {}; data.habits.forEach(function (h) { legend[h.id] = { sym: h.sym, name: h.short, category: h.category, hue: h.hue, negative: h.kind === 'negative' }; });
+  return {
+    strandMediaRequest: 1,
+    milestone: { id: m.id, kind: m.kind, name: m.name, phase: m.phase || null, phaseChange: !!m.phaseChange, formula: m.formula || null, note: m.note || null, reachedOn: m.reachedOn },
+    deliver: { kind: kind, saveAs: 'media/' + m.id + (kind === 'video' ? '.mp4' : '.png') },
+    sample: !!data.meta.sample,
+    stats: Object.assign({ points: der.points, bonded: der.bonded, chain: der.chain, bestChain: der.bestChain, shieldsLeft: der.shields, bondedThrough: der.bondedThrough }, der.counts),
+    habits: legend,
+    routines: data.routines.map(function (r) { return { id: r.id, name: r.name, habits: r.habits }; }),
+    strand: der.days.map(function (dy) {
+      return { date: dy.date, state: dy.state, stable: dy.stable, bonds: dy.bonds, weekStart: dy.weekStart,
+        slots: dy.slots.map(function (s) { var o = { t: s.t, habitId: s.habitId, cat: s.cat }; if (s.bonus) o.bonus = s.bonus; return o; }) };
+    })
+  };
+}
+
+/* ==========================================================================
+   buildSample — FAKE seed data, clearly labelled. Deterministic, so the same
+   sample strand is produced every time (the first stage-change film was
+   rendered from it). Four weeks, Monday to Saturday, ending on the most
+   recent Saturday; any days after that are filled with ordinary sample days.
+   ========================================================================== */
+function buildSample(today) {
+  var data = newData();
+  data.meta.sample = true;
+  data.meta.label = 'SAMPLE DATA: fake entries made up to demonstrate the tool. Not a real log.';
+  var rng = mulberry32(0x57A2D);
+  var lastSat = addDays(today, -1); while (dow(lastSat) !== 6) lastSat = addDays(lastSat, -1);
+  var start = addDays(lastSat, -26);                      // a Monday
+  var daily = ['sleep', 'dailyText', 'vitamins', 'pushups', 'water', 'fasting', 'bible', 'mindfulness'];
+  // day index -> plan.  F = full day, number = habits skipped at random, M = missed entirely
+  var plan = [3, 2, 1, 3, 3, 2, 3,         // week 1: closes stable
+              2, 'M', 3, 2, 'F', 3, 3,     // week 2: Tuesday missed, the starting shield covers it
+              2, 3, 'M', 'M', 'M', 3, 2,   // week 3: three days away. Two shields, then a true gap
+              1, 2, 2, 3, 'F', 1];         // week 4, Monday to Saturday
+  var weekly = { 1: ['gym'], 2: ['midweek'], 4: ['gym'], 5: ['study', 'watchtower'] }; // by weekday offset from Monday
+  var n = daysBetween(start, addDays(today, -1)) + 1;
+  for (var i = 0; i < n; i++) {
+    var date = addDays(start, i), p = i < plan.length ? plan[i] : (i % 2 ? 1 : 2), wd = i % 7;
+    if (p === 'M') continue;
+    var skip = {};
+    if (typeof p === 'number') { var pool = daily.slice(); for (var k = 0; k < p; k++) skip[pool.splice(Math.floor(rng() * pool.length), 1)[0]] = true; }
+    var stamp = date + 'T12:00:00.000Z';
+    daily.forEach(function (id) { if (!skip[id]) checkIn(data, id, date, { today: date, rng: rng, now: stamp }); });
+    (weekly[wd] || []).forEach(function (id) { if (!(i === 18 && id === 'gym')) checkIn(data, id, date, { today: date, rng: rng, now: stamp }); });
+    if (i === 10) { var r1 = checkIn(data, 'alcohol', date, { today: date, amount: 2, rng: rng, now: stamp, note: 'Sample entry' }); repair(data, r1.entry.id, 'hydrate', { today: date, now: stamp }); }
+    if (i === 21) checkIn(data, 'alcohol', date, { today: date, amount: 1, rng: rng, now: stamp, note: 'Sample entry' });
+  }
+  data.derived = snapshot(derive(data, today));
+  return data;
+}
+
+root.StrandEngine = {
+  SCHEMA: SCHEMA, DEFAULT_SETTINGS: DEFAULT_SETTINGS, DEFAULT_HABITS: DEFAULT_HABITS, DEFAULT_ROUTINES: DEFAULT_ROUTINES,
+  newData: newData, normalize: normalize, derive: derive, snapshot: snapshot, checkIn: checkIn, repair: repair,
+  removeEntry: removeEntry, pickTrait: pickTrait, fxAt: fxAt, importEntries: importEntries, mediaRequest: mediaRequest, buildSample: buildSample,
+  stageList: stageList, thinTier: thinTier, habitMap: habitMap,
+  util: { toISO: toISO, parseISO: parseISO, addDays: addDays, dow: dow, weekStart: weekStart, daysBetween: daysBetween, clone: clone, mulberry32: mulberry32, validDate: validDate }
+};
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==========================================================================
+   STRAND HELIX  —  draws the double helix from derived strand days.
+   Input is only what derive() produced from the log: one rung per log entry,
+   an empty stretch per day without entries. Nothing here invents structure.
+   The same code draws the strand in the tool and in the milestone films.
+   ========================================================================== */
+(function (root) {
+'use strict';
+var TAU = Math.PI * 2;
+var C = { aqua: [88, 239, 201], amber: [255, 190, 85], lesion: [255, 77, 120], gold: [255, 233, 166], frost: [168, 220, 255], ink: [230, 243, 241], bond: [201, 184, 255] };
+function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+function hsl(h, s, l, a) { return 'hsla(' + h + ',' + s + '%,' + l + '%,' + (a == null ? 1 : a) + ')'; }
+function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+function ease(x) { x = clamp(x, 0, 1); return 1 - Math.pow(1 - x, 3); }
+
+/* layout: world x for every day and every rung. ghost = open sites on the growing tip (today only). */
+function layout(days, o) {
+  var x = 0, L = { days: [], slots: [], width: 0, slotW: o.slotW, dayGap: o.dayGap, byDate: {}, byLog: {} };
+  days.forEach(function (d, i) {
+    var ghost = (o.ghost && o.ghost[d.date]) || 0;
+    var n = Math.max(1, d.slots.length + ghost), w = n * o.slotW;
+    var day = { i: i, d: d, x0: x, x1: x + w, mid: x + w / 2, slots: [], ghosts: [] };
+    d.slots.forEach(function (s, si) { var sl = { x: x + (si + 0.5) * o.slotW, s: s, day: day }; day.slots.push(sl); L.slots.push(sl); L.byLog[s.logId] = sl; });
+    for (var g = 0; g < ghost; g++) day.ghosts.push(x + (d.slots.length + g + 0.5) * o.slotW);
+    day.realEnd = x + Math.max(d.slots.length, d.slots.length ? 0 : (ghost ? 0 : 1)) * o.slotW;
+    L.days.push(day); L.byDate[d.date] = day;
+    x += w + o.dayGap;
+  });
+  L.width = Math.max(0, x - o.dayGap);
+  return L;
+}
+
+var scene = null;
+function getScene(w, h) {
+  if (!scene) { scene = document.createElement('canvas'); }
+  if (scene.width !== w || scene.height !== h) { scene.width = w; scene.height = h; }
+  return scene;
+}
+
+function hex(g, x, y, r) { g.beginPath(); for (var i = 0; i < 6; i++) { var a = TAU * i / 6 - Math.PI / 2; g[i ? 'lineTo' : 'moveTo'](x + r * Math.cos(a), y + r * Math.sin(a)); } g.closePath(); }
+function star(g, x, y, r) { g.beginPath(); for (var i = 0; i < 8; i++) { var a = TAU * i / 8 - Math.PI / 2, rr = i % 2 ? r * 0.32 : r; g[i ? 'lineTo' : 'moveTo'](x + rr * Math.cos(a), y + rr * Math.sin(a)); } g.closePath(); }
+function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+
+/* draw — v: { W,H,dpr, scrollX, cy, amp, turn, phase, t, habits, bondedThrough, today, selected,
+               hoverLog, hoverDate, anims, ripples, revealX, labels, dayNumbers, bloom, motes } */
+function draw(ctx, L, v) {
+  var dpr = v.dpr || 1, W = v.W, H = v.H, sx = v.scrollX, cy = v.cy, amp = v.amp;
+  var k = TAU / ((v.turn || 10.5) * L.slotW), t = v.t || 0;
+  var reveal = v.revealX == null ? Infinity : v.revealX;
+  var sc = getScene(Math.round(W * dpr), Math.round(H * dpr)), g = sc.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); g.lineCap = 'round'; g.lineJoin = 'round';
+
+  function ampAt(x) {
+    var a = amp;
+    if (v.ripples) for (var i = 0; i < v.ripples.length; i++) {
+      var r = v.ripples[i], age = t - r.t0; if (age < 0 || age > 1.3) continue;
+      var dist = Math.abs(x - r.x);
+      a += Math.sin(dist / 26 - age * 11) * Math.exp(-dist / 190) * (1 - age / 1.3) * (r.power || 7);
+    }
+    return a;
+  }
+  var wx0 = sx - 60, wx1 = Math.min(sx + W + 60, reveal);
+  var vis = L.days.filter(function (d) { return d.x1 + L.dayGap >= wx0 && d.x0 <= wx1; });
+
+  /* stable-day halos, selection */
+  vis.forEach(function (day) {
+    var X = day.x0 - sx, w = day.x1 - day.x0;
+    if (day.d.stable && day.x1 <= reveal) {
+      var gr = g.createLinearGradient(0, cy - amp - 20, 0, cy + amp + 20);
+      gr.addColorStop(0, rgba(C.gold, 0.11)); gr.addColorStop(0.5, rgba(C.gold, 0.02)); gr.addColorStop(1, rgba(C.gold, 0.09));
+      rr(g, X - 4, cy - amp - 20, w + 8, 2 * amp + 40, 12); g.fillStyle = gr; g.fill();
+      g.strokeStyle = rgba(C.gold, 0.22); g.lineWidth = 1; g.stroke();
+    }
+    if (v.selected === day.d.date || v.hoverDate === day.d.date) {
+      rr(g, X - 5, cy - amp - 24, w + 10, 2 * amp + 48, 13);
+      g.strokeStyle = rgba(C.ink, v.selected === day.d.date ? 0.42 : 0.16); g.lineWidth = 1.2; g.setLineDash(v.selected === day.d.date ? [] : [3, 5]); g.stroke(); g.setLineDash([]);
+    }
+  });
+
+  /* nick sites: backbone is cut where a pair is damaged */
+  var nicks = [];
+  vis.forEach(function (day) { day.slots.forEach(function (sl) { if (sl.s.t === 'damaged') nicks.push({ x: sl.x, strand: sl.s.cat === 'health' ? 0 : 1 }); }); });
+
+  /* backbone samples */
+  var step = 3, pts = [[], []], di = 0;
+  var endX = Math.min(L.width, wx1), startX = Math.max(0, Math.floor(wx0 / step) * step);
+  for (var x = startX; x <= endX + 0.01; x += step) {
+    while (di < L.days.length - 1 && x > L.days[di].x1 + L.dayGap / 2) di++;
+    var day = L.days[di], st = 'solid';
+    if (x >= day.x0 - L.dayGap / 2) {
+      if (day.d.state === 'gap') st = 'gap';
+      else if (day.d.state === 'shielded' && !day.slots.length) st = 'frost';
+      else if (!day.slots.length || x > day.x0 + day.slots.length * L.slotW) st = 'tip';
+    }
+    var th = x * k + v.phase, a = ampAt(x), sn = Math.sin(th), cs = Math.cos(th);
+    pts[0].push({ X: x - sx, x: x, y: cy + a * sn, z: cs, st: st });
+    pts[1].push({ X: x - sx, x: x, y: cy - a * sn, z: -cs, st: st });
+  }
+  function backbone(front) {
+    for (var s = 0; s < 2; s++) {
+      var P = pts[s], col = s === 0 ? C.aqua : C.amber;
+      for (var i = 0; i < P.length - 1; i++) {
+        var p = P[i], q = P[i + 1], z = (p.z + q.z) / 2;
+        if ((z >= 0) !== front) continue;
+        var cut = false; for (var n = 0; n < nicks.length; n++) if (nicks[n].strand === s && Math.abs(nicks[n].x - (p.x + q.x) / 2) < 4.2) { cut = true; break; }
+        if (cut) continue;
+        var zf = (z + 1) / 2, al = 0.26 + 0.74 * zf, w = 1.6 + 3.6 * zf, c = col;
+        if (p.st === 'gap') { if (Math.floor(p.x / step) % 3 !== 0) continue; al *= 0.34; w *= 0.55; c = C.ink; }
+        else if (p.st === 'frost') { c = C.frost; al *= 0.85; }
+        else if (p.st === 'tip') { if (Math.floor(p.x / step) % 2 !== 0) continue; al *= 0.45; w *= 0.6; }
+        g.strokeStyle = rgba(c, al); g.lineWidth = w;
+        g.beginPath(); g.moveTo(p.X, p.y); g.lineTo(q.X, q.y); g.stroke();
+      }
+    }
+  }
+  backbone(false);
+
+  /* routine bonds: an arc over the rungs that bonded that day */
+  vis.forEach(function (day) {
+    if (day.x1 > reveal) return;
+    day.d.bonds.forEach(function (rid, j) {
+      var rt = v.routines && v.routines[rid]; if (!rt) return;
+      var xs = day.slots.filter(function (sl) { return rt.habits.indexOf(sl.s.habitId) >= 0 && sl.s.t === 'pair'; }).map(function (sl) { return sl.x - sx; });
+      if (xs.length < 2) return;
+      var up = j % 2 === 0, y0 = cy + (up ? -1 : 1) * (amp + 9), y1 = y0 + (up ? -1 : 1) * 13;
+      var a = Math.min.apply(null, xs), b = Math.max.apply(null, xs);
+      g.strokeStyle = rgba(C.ink, 0.5); g.lineWidth = 1.1;
+      g.beginPath(); g.moveTo(a, y0); g.bezierCurveTo(a, y1, b, y1, b, y0); g.stroke();
+      g.fillStyle = rgba(C.ink, 0.75); xs.forEach(function (X) { g.beginPath(); g.arc(X, y0, 1.7, 0, TAU); g.fill(); });
+    });
+  });
+
+  /* rungs: one per log entry */
+  vis.forEach(function (day) {
+    day.ghosts.forEach(function (gx) {
+      var th = gx * k + v.phase, a = ampAt(gx), sn = Math.sin(th), X = gx - sx;
+      g.strokeStyle = rgba(C.ink, 0.13); g.lineWidth = 1.2; g.setLineDash([2, 5]);
+      g.beginPath(); g.moveTo(X, cy + a * sn); g.lineTo(X, cy - a * sn); g.stroke(); g.setLineDash([]);
+    });
+    day.slots.forEach(function (sl) {
+      if (sl.x > reveal) return;
+      var s = sl.s, X = sl.x - sx, th = sl.x * k + v.phase, a = ampAt(sl.x), sn = Math.sin(th), cs = Math.cos(th);
+      var yA = cy + a * sn, yB = cy - a * sn, isA = s.cat === 'health';
+      var yC = isA ? yA : yB, yO = isA ? yB : yA, zf = ((isA ? cs : -cs) + 1) / 2;
+      var hab = v.habits[s.habitId] || { hue: 0 }, grow = 1, flash = 0;
+      if (v.anims && v.anims[s.logId] != null) { var age = (t - v.anims[s.logId]) / 0.55; grow = ease(age); flash = clamp(1 - age / 1.6, 0, 1); }
+      if (reveal !== Infinity) { grow = ease((reveal - sl.x) / (L.slotW * 2.2)); flash = clamp(1 - (reveal - sl.x) / (L.slotW * 7), 0, 1) * 0.8; }
+      var hot = v.hoverLog === s.logId, depth = 0.55 + 0.45 * Math.abs(sn);
+      var col = hsl(hab.hue, 88, 68 + flash * 18, 0.95 * depth + (hot ? 0.3 : 0)), r = (3 + 2.4 * zf) * (1 + flash * 0.9) * (0.4 + 0.6 * grow);
+      var mC = cy + (yC - cy) * 0.07, mO = cy + (yO - cy) * 0.07;
+
+      if (s.t === 'pair') {
+        g.strokeStyle = col; g.lineWidth = hot ? 4 : 3;
+        g.beginPath(); g.moveTo(X, yC); g.lineTo(X, yC + (mC - yC) * grow); g.stroke();
+        g.strokeStyle = rgba(C.ink, (0.24 + (hot ? 0.3 : 0)) * depth); g.lineWidth = 2;
+        g.beginPath(); g.moveTo(X, yO); g.lineTo(X, yO + (mO - yO) * grow); g.stroke();
+        g.fillStyle = rgba(C.ink, 0.42); g.beginPath(); g.arc(X, yO, 1.9, 0, TAU); g.fill();
+        g.fillStyle = col; g.beginPath(); g.arc(X, yC, r, 0, TAU); g.fill();
+        g.fillStyle = 'rgba(255,255,255,' + (0.55 + flash * 0.45) + ')'; g.beginPath(); g.arc(X - r * 0.25, yC - r * 0.25, r * 0.34, 0, TAU); g.fill();
+        if (s.bonus === 'rare') { g.fillStyle = rgba(C.gold, 0.95); star(g, X, yC, r + 6.5); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(X, yC, r * 0.55, 0, TAU); g.fill(); }
+        else if (s.bonus === 'chest') { g.strokeStyle = rgba(C.gold, 0.95); g.lineWidth = 1.4; hex(g, X, yC, r + 4); g.stroke(); }
+        else if (s.bonus === 'crit') { g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 1.2; g.beginPath(); g.arc(X, yC, r + 3.2, 0, TAU); g.stroke(); }
+      } else if (s.t === 'damaged') {
+        var pulse = 0.6 + 0.4 * Math.sin(t * 3.2 + sl.x);
+        var gl = g.createRadialGradient(X, cy, 0, X, cy, amp * 0.9);
+        gl.addColorStop(0, rgba(C.lesion, 0.30 * pulse * grow)); gl.addColorStop(1, rgba(C.lesion, 0));
+        g.fillStyle = gl; g.fillRect(X - amp, cy - amp, amp * 2, amp * 2);
+        g.strokeStyle = rgba(C.lesion, 0.95); g.lineWidth = 2.6;
+        var eC = cy + (yC - cy) * 0.42, eO = cy + (yO - cy) * 0.36;
+        g.beginPath(); g.moveTo(X, yC); g.lineTo(X + 1.5, yC + (eC - yC) * 0.6); g.lineTo(X - 3.5, eC); g.stroke();
+        g.beginPath(); g.moveTo(X, yO); g.lineTo(X - 1.5, yO + (eO - yO) * 0.6); g.lineTo(X + 3.5, eO); g.stroke();
+        g.lineWidth = 2; var q = 4 + zf * 1.5;
+        g.beginPath(); g.moveTo(X - q, yC - q); g.lineTo(X + q, yC + q); g.moveTo(X + q, yC - q); g.lineTo(X - q, yC + q); g.stroke();
+        if (hot) { g.strokeStyle = rgba(C.ink, 0.6); g.lineWidth = 1; g.beginPath(); g.arc(X, yC, q + 5, 0, TAU); g.stroke(); }
+      } else { /* repaired: whole again, with the ligation seam left visible */
+        g.strokeStyle = rgba(C.gold, 0.9 * depth + (hot ? 0.2 : 0)); g.lineWidth = hot ? 3.6 : 2.6;
+        g.beginPath(); g.moveTo(X, yC); g.lineTo(X, yC + (yO - yC) * grow); g.stroke();
+        g.fillStyle = rgba(C.gold, 1); g.save(); g.translate(X, cy); g.rotate(Math.PI / 4); g.fillRect(-3.4, -3.4, 6.8, 6.8); g.restore();
+        g.fillStyle = hsl(hab.hue, 70, 72, 0.95); g.beginPath(); g.arc(X, yC, r, 0, TAU); g.fill();
+        g.strokeStyle = rgba(C.gold, 1); g.lineWidth = 1.5; g.beginPath(); g.arc(X, yC, r + 3, 0, TAU); g.stroke();
+        g.lineWidth = 1.6; g.beginPath(); g.moveTo(X - 5, yC - 6); g.lineTo(X - 5, yC + 6); g.moveTo(X + 5, yC - 6); g.lineTo(X + 5, yC + 6); g.stroke();
+        if (flash > 0) { g.fillStyle = rgba(C.gold, flash * 0.5); g.beginPath(); g.arc(X, cy, 16 * flash + 6, 0, TAU); g.fill(); }
+      }
+      if (flash > 0 && s.t === 'pair') { g.fillStyle = hsl(hab.hue, 90, 75, flash * 0.35); g.beginPath(); g.arc(X, yC, r + 12 * flash, 0, TAU); g.fill(); }
+    });
+    /* markers for days without entries */
+    if (!day.slots.length && day.x1 <= reveal) {
+      var X = day.mid - sx;
+      if (day.d.state === 'shielded') {
+        g.fillStyle = rgba(C.frost, 0.16); hex(g, X, cy, 10); g.fill(); g.strokeStyle = rgba(C.frost, 0.95); g.lineWidth = 1.5; g.stroke();
+        g.beginPath(); g.moveTo(X - 3.5, cy); g.lineTo(X - 0.8, cy + 3); g.lineTo(X + 4, cy - 3); g.stroke();
+      } else if (day.d.state === 'gap') {
+        g.strokeStyle = rgba(C.ink, 0.3); g.lineWidth = 1.1; g.setLineDash([2, 3]); g.beginPath(); g.arc(X, cy, 6, 0, TAU); g.stroke(); g.setLineDash([]);
+      }
+    }
+    if (day.d.stable && day.x1 <= reveal) { var hx = day.mid - sx, hy = cy - amp - 30; g.strokeStyle = rgba(C.gold, 0.9); g.lineWidth = 1.3; hex(g, hx, hy, 5.5); g.stroke(); g.fillStyle = rgba(C.gold, 0.9); g.beginPath(); g.arc(hx, hy, 1.6, 0, TAU); g.fill(); }
+  });
+
+  backbone(true);
+
+  /* growing tip */
+  if (v.tip !== false && reveal === Infinity && L.days.length) {
+    var last = L.days[L.days.length - 1], tx = last.x0 + last.slots.length * L.slotW, thT = tx * k + v.phase;
+    var pu = 0.5 + 0.5 * Math.sin(t * 2.4);
+    [1, -1].forEach(function (sg, i) { g.fillStyle = rgba(i ? C.amber : C.aqua, 0.5 + 0.4 * pu); g.beginPath(); g.arc(tx - sx, cy + sg * ampAt(tx) * Math.sin(thT), 2.6 + pu * 1.6, 0, TAU); g.fill(); });
+  }
+
+  /* composite: soft bloom under a crisp copy */
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, sc.width, sc.height);
+  if (v.motes) drawMotes(ctx, v, sc.width, sc.height, dpr);
+  if (v.bloom !== false) {
+    ctx.globalCompositeOperation = 'lighter'; ctx.filter = 'blur(' + Math.round(9 * dpr) + 'px)'; ctx.globalAlpha = 0.85; ctx.drawImage(sc, 0, 0);
+    ctx.filter = 'blur(' + Math.round(26 * dpr) + 'px)'; ctx.globalAlpha = 0.5; ctx.drawImage(sc, 0, 0);
+    ctx.filter = 'none'; ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  }
+  ctx.drawImage(sc, 0, 0); ctx.restore();
+
+  if (v.labels !== false) labels(ctx, L, v, vis, reveal);
+}
+
+function drawMotes(ctx, v, w, h, dpr) {
+  var t = v.t || 0, n = v.moteCount || 46;
+  for (var i = 0; i < n; i++) {
+    var s1 = Math.sin(i * 127.1) * 43758.5453, s2 = Math.sin(i * 311.7) * 24634.6345, s3 = Math.sin(i * 74.7) * 12414.3;
+    var fx = s1 - Math.floor(s1), fy = s2 - Math.floor(s2), fz = s3 - Math.floor(s3);
+    var par = 0.15 + fz * 0.5;
+    var x = ((fx * w - (v.scrollX || 0) * par * dpr + t * (4 + fz * 9) * dpr) % w + w) % w;
+    var y = (fy * h + Math.sin(t * 0.3 + i) * 10 * dpr + h) % h;
+    ctx.fillStyle = 'rgba(190,235,235,' + (0.05 + fz * 0.16) + ')';
+    ctx.beginPath(); ctx.arc(x, y, (0.6 + fz * 1.9) * dpr, 0, TAU); ctx.fill();
+  }
+}
+
+var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+function labels(ctx, L, v, vis, reveal) {
+  var sx = v.scrollX, cy = v.cy, amp = v.amp, font = v.font || 'Bahnschrift, "Segoe UI", system-ui, sans-serif';
+  var yBar = cy + amp + 30, yTxt = yBar + 19;
+  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.lineCap = 'round';
+  var lastMonthX = -999;
+  vis.forEach(function (day) {
+    if (day.x1 > reveal) return;
+    var d = day.d, X0 = day.x0 - sx, X1 = day.x1 - sx, mid = day.mid - sx;
+    var p = d.date.split('-'), dom = +p[2], wd = new Date(+p[0], +p[1] - 1, dom).getDay();
+    var bonded = v.bondedThrough && d.date <= v.bondedThrough;
+    var next = L.days[day.i + 1], join = next && next.d.weekStart === d.weekStart ? L.dayGap : 0;
+    /* week bar: solid = bonded for good, dashed = still loose */
+    ctx.beginPath(); ctx.moveTo(X0, yBar); ctx.lineTo(X1 + join, yBar);
+    if (bonded) { ctx.strokeStyle = rgba(C.bond, 0.9); ctx.lineWidth = 3; ctx.setLineDash([]); }
+    else { ctx.strokeStyle = rgba(C.ink, 0.28); ctx.lineWidth = 1.4; ctx.setLineDash([3, 5]); }
+    ctx.stroke(); ctx.setLineDash([]);
+    var isToday = d.date === v.today, sel = d.date === v.selected;
+    ctx.font = (isToday || sel ? '600 ' : '400 ') + '12px ' + font;
+    ctx.fillStyle = isToday ? rgba(C.aqua, 1) : d.state === 'shielded' ? rgba(C.frost, 0.95) : d.state === 'gap' ? rgba(C.ink, 0.38) : rgba(C.ink, sel ? 1 : 0.62);
+    var wide = X1 - X0 >= 30;
+    var txt = v.dayNumbers ? String(day.i + 1) : (isToday && wide ? 'Today' : (wide ? DOW[wd] + ' ' : '') + dom);
+    ctx.fillText(txt, mid, yTxt);
+    if (!v.dayNumbers && (dom === 1 || day === vis[0]) && mid - lastMonthX > 70) { ctx.font = '600 12px ' + font; ctx.fillStyle = rgba(C.ink, 0.5); ctx.textAlign = 'left'; ctx.fillText(MON[+p[1] - 1] + ' ' + p[0], Math.max(X0, 8), yTxt + 17); ctx.textAlign = 'center'; lastMonthX = mid; }
+  });
+  ctx.restore();
+}
+
+/* pick: what is under the pointer */
+function pick(L, v, mx, my) {
+  var wx = mx + v.scrollX, out = { slot: null, day: null };
+  for (var i = 0; i < L.days.length; i++) { var d = L.days[i]; if (wx >= d.x0 - L.dayGap / 2 && wx < d.x1 + L.dayGap / 2) { out.day = d; break; } }
+  if (out.day && Math.abs(my - v.cy) < v.amp + 14) {
+    var best = null, bd = L.slotW * 0.6;
+    out.day.slots.forEach(function (sl) { var dd = Math.abs(sl.x - wx); if (dd < bd) { bd = dd; best = sl; } });
+    out.slot = best;
+  }
+  return out;
+}
+function slotScreen(L, v, logId) {
+  var sl = L.byLog[logId]; if (!sl) return null;
+  var k = TAU / ((v.turn || 10.5) * L.slotW), sn = Math.sin(sl.x * k + v.phase);
+  return { x: sl.x - v.scrollX, y: v.cy + (sl.s.cat === 'health' ? 1 : -1) * v.amp * sn, wx: sl.x };
+}
+
+/* minimap: the whole strand at a glance, one column per day */
+function mini(ctx, L, v, W, H, dpr) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  if (!L.days.length) return;
+  var sxs = W / Math.max(L.width, 1), maxN = 1;
+  L.days.forEach(function (d) { if (d.slots.length > maxN) maxN = d.slots.length; });
+  L.days.forEach(function (day) {
+    var d = day.d, x = day.x0 * sxs, w = Math.max(1.5, (day.x1 - day.x0) * sxs - 1), n = d.slots.length;
+    if (!n) { ctx.fillStyle = d.state === 'shielded' ? rgba(C.frost, 0.9) : rgba(C.ink, 0.16); ctx.fillRect(x, H / 2 - 1, w, 2); return; }
+    var h = Math.max(3, (H - 6) * n / maxN);
+    ctx.fillStyle = d.stable ? rgba(C.gold, 0.85) : rgba(C.aqua, 0.5); ctx.fillRect(x, (H - h) / 2, w, h);
+    if (d.slots.some(function (s) { return s.t === 'damaged'; })) { ctx.fillStyle = rgba(C.lesion, 1); ctx.fillRect(x, (H - h) / 2, w, 3); }
+    else if (d.slots.some(function (s) { return s.t === 'repaired'; })) { ctx.fillStyle = rgba(C.gold, 1); ctx.fillRect(x, (H - h) / 2, w, 3); }
+  });
+  ctx.strokeStyle = rgba(C.ink, 0.75); ctx.lineWidth = 1.2;
+  rr(ctx, v.scrollX * sxs + 0.6, 0.6, Math.min(W - 1.2, v.W * sxs), H - 1.2, 3); ctx.stroke();
+}
+
+root.StrandHelix = { layout: layout, draw: draw, pick: pick, slotScreen: slotScreen, mini: mini, C: C, rgba: rgba, hsl: hsl };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==========================================================================
+   STRAND APP  —  screen, sound, storage. Rules live in the engine above.
+   ========================================================================== */
+(function () {
+'use strict';
+var E = window.StrandEngine, U = E.util, HX = window.StrandHelix;
+function $(s, r) { return (r || document).querySelector(s); }
+function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+var DAYN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], MONN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function longDate(iso) { var d = U.parseISO(iso); return DAYN[d.getDay()] + ', ' + MONN[d.getMonth()] + ' ' + d.getDate(); }
+function shortDate(iso) { var d = U.parseISO(iso); return DAYN[d.getDay()].slice(0, 3) + ' ' + MONN[d.getMonth()] + ' ' + d.getDate(); }
+function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
+
+var LS_KEY = 'strand.data.v1', DATA_FILE = 'strand-data.json', MEDIA_DIR = 'media';
+var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+var st = {
+  data: null, D: null, today: U.toISO(new Date()), sel: null, L: null, habits: {}, routines: {},
+  v: { slotW: 17, dayGap: 10, scrollX: 0, target: null, phase: 0.6, anims: {}, ripples: [], hoverLog: null, hoverDate: null, W: 0, H: 0, dpr: 1, vel: 0, motes: true, bloom: true },
+  dir: null, dirState: 'none', dirName: '', lastWrite: null, writeError: null, mediaCache: {},
+  undoArm: null, negOpen: false, negAmt: 1, repairPick: {}, genePick: null, drawer: null, t0: performance.now(), shownPts: 0, importReport: null
+};
+function clock() { return (performance.now() - st.t0) / 1000; }
+function S() { return st.data.settings; }
+
+/* ============================== storage ================================== */
+var IDB = {
+  db: null,
+  open: function () {
+    return new Promise(function (res) {
+      if (IDB.db) return res(IDB.db);
+      try {
+        var rq = indexedDB.open('strand-db', 1);
+        rq.onupgradeneeded = function () { rq.result.createObjectStore('kv'); };
+        rq.onsuccess = function () { IDB.db = rq.result; res(IDB.db); };
+        rq.onerror = function () { res(null); };
+      } catch (e) { res(null); }
+    });
+  },
+  get: function (k) { return IDB.open().then(function (db) { return new Promise(function (res) { if (!db) return res(null); try { var r = db.transaction('kv').objectStore('kv').get(k); r.onsuccess = function () { res(r.result || null); }; r.onerror = function () { res(null); }; } catch (e) { res(null); } }); }); },
+  set: function (k, v) { return IDB.open().then(function (db) { return new Promise(function (res) { if (!db) return res(false); try { var tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = function () { res(true); }; tx.onerror = function () { res(false); }; } catch (e) { res(false); } }); }); },
+  del: function (k) { return IDB.open().then(function (db) { return new Promise(function (res) { if (!db) return res(false); try { var tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').delete(k); tx.oncomplete = function () { res(true); }; } catch (e) { res(false); } }); }); }
+};
+
+var Store = {
+  canLink: !!window.showDirectoryPicker, pending: null, writing: false,
+  init: function () {
+    var raw = null;
+    try { raw = localStorage.getItem(LS_KEY); } catch (e) {}
+    if (raw) { try { st.data = E.normalize(JSON.parse(raw)); } catch (e) { st.data = null; } }
+    if (!st.data) st.data = E.buildSample(st.today);
+    if (!Store.canLink) return Promise.resolve();
+    return IDB.get('dir').then(function (h) {
+      if (!h) return;
+      st.dir = h; st.dirName = h.name;
+      return h.queryPermission({ mode: 'readwrite' }).then(function (p) {
+        if (p === 'granted') { st.dirState = 'linked'; return Store.readFile(); }
+        st.dirState = 'paused';
+      });
+    }).catch(function () {});
+  },
+  readFile: function () {
+    return st.dir.getFileHandle(DATA_FILE).then(function (fh) { return fh.getFile(); }).then(function (f) { return f.text(); }).then(function (txt) {
+      if (!txt.trim()) return false;
+      st.data = E.normalize(JSON.parse(txt)); return true;
+    }).catch(function (e) { if (e && e.name !== 'NotFoundError') toast('Could not read ' + DATA_FILE + ': ' + esc(e.message), 'bad'); return false; });
+  },
+  text: function () { return JSON.stringify(st.data, null, 2); },
+  save: function () {
+    st.data.meta.updatedAt = new Date().toISOString();
+    st.data.derived = E.snapshot(st.D);
+    var txt = Store.text();
+    try { localStorage.setItem(LS_KEY, txt); } catch (e) {}
+    if (st.dirState === 'linked') Store.queue(txt);
+    syncStatus();
+  },
+  queue: function (txt) {
+    Store.pending = txt; if (Store.writing) return; Store.writing = true;
+    (function loop() {
+      if (Store.pending == null) { Store.writing = false; syncStatus(); return; }
+      var t = Store.pending; Store.pending = null;
+      st.dir.getFileHandle(DATA_FILE, { create: true }).then(function (fh) { return fh.createWritable(); })
+        .then(function (w) { return w.write(t).then(function () { return w.close(); }); })
+        .then(function () { st.lastWrite = new Date(); st.writeError = null; loop(); })
+        .catch(function (e) { st.writeError = e.message || String(e); Store.writing = false; syncStatus(); });
+    })();
+  },
+  link: function () {
+    return window.showDirectoryPicker({ id: 'strand', mode: 'readwrite' }).then(function (h) {
+      st.dir = h; st.dirName = h.name; st.dirState = 'linked'; st.mediaCache = {};
+      return IDB.set('dir', h).then(function () { return h.getDirectoryHandle(MEDIA_DIR, { create: true }).catch(function () {}); })
+        .then(function () { return h.getFileHandle(DATA_FILE).then(function () { return true; }, function () { return false; }); })
+        .then(function (exists) {
+          if (!exists) { Store.save(); toast('<b>Linked.</b> Saving to ' + esc(h.name) + '/' + DATA_FILE + ' from now on.', 'gold'); refreshAll(); return; }
+          modal('This folder already has a Strand data file', 'Load that file, or replace it with what is on screen now?', [
+            { label: 'Load the file', cls: 'go', fn: function () { Store.readFile().then(function () { boot2(); toast('<b>Loaded</b> ' + esc(h.name) + '/' + DATA_FILE, 'gold'); }); } },
+            { label: 'Replace it with what is on screen', fn: function () { Store.save(); refreshAll(); toast('<b>Linked.</b> The file now holds what is on screen.', 'gold'); } }
+          ]);
+        });
+    }).catch(function (e) { if (e && e.name !== 'AbortError') toast('Could not link the folder: ' + esc(e.message), 'bad'); });
+  },
+  reconnect: function () {
+    return st.dir.requestPermission({ mode: 'readwrite' }).then(function (p) {
+      if (p !== 'granted') { toast('Permission was not granted. Data stays in this browser for now.', 'bad'); return; }
+      st.dirState = 'linked'; st.mediaCache = {};
+      return Store.readFile().then(function (ok) { if (!ok) Store.save(); boot2(); toast('<b>Reconnected</b> to ' + esc(st.dirName) + '/' + DATA_FILE, 'gold'); });
+    }).catch(function (e) { toast('Could not reconnect: ' + esc(e.message), 'bad'); });
+  },
+  unlink: function () { st.dir = null; st.dirState = 'none'; st.mediaCache = {}; IDB.del('dir'); syncStatus(); if (st.drawer) renderDrawer(); }
+};
+
+/* ============================== media slots ============================== */
+var Media = {
+  exts: { video: ['mp4', 'webm'], image: ['png', 'jpg', 'jpeg', 'webp'] },
+  probe: function (url, kind) {
+    return new Promise(function (res) {
+      var done = false, el = kind === 'video' ? document.createElement('video') : new Image();
+      function fin(ok) { if (done) return; done = true; res(ok); }
+      if (kind === 'video') { el.preload = 'metadata'; el.onloadedmetadata = function () { fin(true); }; } else el.onload = function () { fin(true); };
+      el.onerror = function () { fin(false); }; setTimeout(function () { fin(false); }, 2500); el.src = url;
+    });
+  },
+  resolve: function (slot) {
+    if (st.mediaCache[slot.id] !== undefined) return Promise.resolve(st.mediaCache[slot.id]);
+    var exts = Media.exts[slot.kind], found = null;
+    function fromFolder() {
+      if (st.dirState !== 'linked') return Promise.resolve();
+      return st.dir.getDirectoryHandle(MEDIA_DIR).then(function (md) {
+        return exts.reduce(function (p, ext) {
+          return p.then(function () { if (found) return; return md.getFileHandle(slot.id + '.' + ext).then(function (fh) { return fh.getFile(); }).then(function (f) { found = { url: URL.createObjectURL(f), file: MEDIA_DIR + '/' + slot.id + '.' + ext }; }, function () {}); });
+        }, Promise.resolve());
+      }).catch(function () {});
+    }
+    function fromBrowser() { if (found) return; return IDB.get('media:' + slot.id).then(function (rec) { if (rec && rec.blob) found = { url: URL.createObjectURL(rec.blob), file: rec.name + ' (kept in this browser)' }; }); }
+    function fromBeside() {
+      if (found) return;
+      return exts.reduce(function (p, ext) { return p.then(function () { if (found) return; var u = MEDIA_DIR + '/' + slot.id + '.' + ext; return Media.probe(u, slot.kind).then(function (ok) { if (ok) found = { url: u, file: u }; }); }); }, Promise.resolve());
+    }
+    return fromFolder().then(fromBrowser).then(fromBeside).then(function () { st.mediaCache[slot.id] = found; return found; });
+  },
+  scan: function () {
+    var changed = false;
+    return st.data.media.reduce(function (p, slot) {
+      return p.then(function () { return Media.resolve(slot); }).then(function (f) {
+        if (f && (slot.status !== 'imported' || slot.file !== f.file)) { slot.status = 'imported'; slot.file = f.file; slot.importedOn = slot.importedOn || st.today; changed = true; }
+        if (!f && slot.status === 'imported') { slot.status = 'missing'; changed = true; }
+      });
+    }, Promise.resolve()).then(function () { if (changed) Store.save(); renderHUD(); if (st.drawer === 'vault') renderDrawer(); });
+  },
+  importFile: function (slot, file) {
+    var ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (Media.exts[slot.kind].indexOf(ext) < 0) { toast('This slot takes ' + Media.exts[slot.kind].join(', ') + ' files.', 'bad'); return Promise.resolve(); }
+    var p;
+    if (st.dirState === 'linked') {
+      p = st.dir.getDirectoryHandle(MEDIA_DIR, { create: true }).then(function (md) { return md.getFileHandle(slot.id + '.' + ext, { create: true }); })
+        .then(function (fh) { return fh.createWritable(); }).then(function (w) { return w.write(file).then(function () { return w.close(); }); });
+    } else p = IDB.set('media:' + slot.id, { blob: file, name: slot.id + '.' + ext });
+    return p.then(function () { delete st.mediaCache[slot.id]; return Media.scan(); }).then(function () { toast('<b>Imported.</b> ' + esc(slot.id) + ' is in its slot.', 'gold'); })
+      .catch(function (e) { toast('Import failed: ' + esc(e.message), 'bad'); });
+  }
+};
+
+/* ============================== sound ==================================== */
+var Sfx = {
+  ctx: null, on: true,
+  init: function () {
+    if (!Sfx.on) return;
+    try { if (!Sfx.ctx) { var AC = window.AudioContext || window.webkitAudioContext; Sfx.ctx = new AC(); Sfx.out = Sfx.ctx.createGain(); Sfx.out.gain.value = 0.42; Sfx.out.connect(Sfx.ctx.destination); } if (Sfx.ctx.state === 'suspended') Sfx.ctx.resume(); } catch (e) { Sfx.ctx = null; }
+  },
+  tone: function (f, at, dur, type, vol, slide) {
+    if (!Sfx.on || !Sfx.ctx) return;
+    var c = Sfx.ctx, t = c.currentTime + at, o = c.createOscillator(), g = c.createGain();
+    o.type = type || 'sine'; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.3, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(Sfx.out); o.start(t); o.stop(t + dur + 0.05);
+  },
+  note: function (semi) { return 392 * Math.pow(2, semi / 12); },
+  check: function (n) { var sc = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24], f = Sfx.note(sc[n % sc.length]); Sfx.tone(f, 0, 0.3, 'triangle', 0.4); Sfx.tone(f * 2, 0.015, 0.22, 'sine', 0.16); Sfx.tone(f * 3, 0.03, 0.12, 'sine', 0.05); },
+  bonus: function (type) { var seq = type === 'rare' ? [12, 16, 19, 24, 28, 31, 36] : type === 'chest' ? [7, 12, 16, 19, 24] : [12, 19, 24]; if (type === 'chest') Sfx.tone(110, 0, 0.18, 'square', 0.16, 70); seq.forEach(function (s, i) { Sfx.tone(Sfx.note(s), 0.05 + i * 0.065, 0.32, 'triangle', 0.24); Sfx.tone(Sfx.note(s + 12), 0.05 + i * 0.065, 0.2, 'sine', 0.08); }); },
+  bond: function () { Sfx.tone(Sfx.note(0), 0, 0.5, 'sine', 0.24); Sfx.tone(Sfx.note(7), 0.07, 0.5, 'sine', 0.24); },
+  molecule: function () { [0, 4, 7, 12, 16].forEach(function (s, i) { Sfx.tone(Sfx.note(s), i * 0.05, 1.1, 'triangle', 0.2); }); },
+  damage: function () { Sfx.tone(140, 0, 0.5, 'sawtooth', 0.26, 48); Sfx.tone(97, 0.02, 0.6, 'square', 0.12, 40); },
+  repair: function () { Sfx.tone(220, 0, 0.34, 'sawtooth', 0.1, 880); [7, 12, 19].forEach(function (s, i) { Sfx.tone(Sfx.note(s), 0.3 + i * 0.07, 0.6, 'triangle', 0.22); }); },
+  stage: function () { [-12, 0, 7, 12, 16, 19, 24].forEach(function (s, i) { Sfx.tone(Sfx.note(s), i * 0.09, 2.2, i < 2 ? 'sine' : 'triangle', 0.2); }); },
+  undo: function () { Sfx.tone(330, 0, 0.16, 'sine', 0.16, 200); },
+  gene: function () { [0, 7, 12, 19, 24, 31].forEach(function (s, i) { Sfx.tone(Sfx.note(s), i * 0.075, 1.3, i % 2 ? 'sine' : 'triangle', 0.2); }); Sfx.tone(98, 0, 0.9, 'sine', 0.2); },
+  shield: function () { Sfx.tone(1318, 0, 0.5, 'sine', 0.14); Sfx.tone(1760, 0.08, 0.6, 'sine', 0.1); }
+};
+
+/* ============================== effects ================================== */
+var FX = {
+  parts: [], run: false,
+  burst: function (x, y, color, n, power) {
+    if (reduce) return;
+    for (var i = 0; i < n; i++) { var a = Math.random() * 6.283, sp = (0.4 + Math.random()) * (power || 5); FX.parts.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1, life: 1, dec: 0.014 + Math.random() * 0.02, r: 1.5 + Math.random() * 3, c: color }); }
+    if (!FX.run) { FX.run = true; requestAnimationFrame(FX.loop); }
+  },
+  loop: function () {
+    var c = $('#fx'), dpr = window.devicePixelRatio || 1;
+    if (c.width !== Math.round(innerWidth * dpr)) { c.width = Math.round(innerWidth * dpr); c.height = Math.round(innerHeight * dpr); }
+    var g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, innerWidth, innerHeight); g.globalCompositeOperation = 'lighter';
+    FX.parts = FX.parts.filter(function (p) { return p.life > 0; });
+    FX.parts.forEach(function (p) { p.x += p.vx; p.y += p.vy; p.vy += 0.09; p.vx *= 0.985; p.life -= p.dec; g.globalAlpha = Math.max(0, p.life); g.fillStyle = p.c; g.beginPath(); g.arc(p.x, p.y, p.r * (0.5 + p.life * 0.5), 0, 6.283); g.fill(); });
+    g.globalAlpha = 1;
+    if (FX.parts.length) requestAnimationFrame(FX.loop); else { FX.run = false; g.clearRect(0, 0, innerWidth, innerHeight); }
+  }
+};
+function floater(text, x, y, color, big, delay) {
+  setTimeout(function () {
+    var el = document.createElement('div'); el.className = 'float' + (big ? ' big' : ''); el.textContent = text; el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.color = color;
+    document.body.appendChild(el); setTimeout(function () { el.remove(); }, 1350);
+  }, delay || 0);
+}
+function flash(kind) { var f = $('#flash'); f.className = ''; void f.offsetWidth; f.className = kind; }
+function toast(html, cls, opt) {
+  opt = opt || {};
+  var el = document.createElement('div'); el.className = 'toast ' + (cls || ''); el.innerHTML = html;
+  if (opt.action) { var b = document.createElement('button'); b.className = 'btn sm'; b.style.marginLeft = '10px'; b.textContent = opt.action.label; b.onclick = function () { opt.action.fn(); kill(); }; el.appendChild(b); }
+  function kill() { el.classList.add('out'); setTimeout(function () { el.remove(); }, 320); }
+  $('#toasts').appendChild(el); if (!opt.sticky) setTimeout(kill, opt.ms || 6200);
+  el.addEventListener('click', function (e) { if (e.target === el) kill(); });
+}
+function modal(title, text, buttons) {
+  var m = $('#modal'), box = $('#modalBox');
+  box.innerHTML = '<h3>' + esc(title) + '</h3><p>' + text + '</p><div class="row"></div>';
+  buttons.concat([{ label: 'Cancel' }]).forEach(function (b) { var el = document.createElement('button'); el.className = 'btn ' + (b.cls || ''); el.textContent = b.label; el.onclick = function () { m.classList.remove('on'); if (b.fn) b.fn(); }; $('.row', box).appendChild(el); });
+  m.classList.add('on');
+}
+function download(name, text, type) { var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: type || 'application/json' })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+function pickFile(accept) { return new Promise(function (res) { var i = $('#filePick'); i.value = ''; i.accept = accept || ''; i.onchange = function () { res(i.files[0] || null); }; i.click(); }); }
+
+/* ============================== derive + layout ========================== */
+function recompute() {
+  st.D = E.derive(st.data, st.today);
+  st.habits = E.habitMap(st.data); st.routines = {}; st.data.routines.forEach(function (r) { st.routines[r.id] = r; });
+  relayout();
+}
+function relayout() {
+  var ghost = {}, td = st.D.byDate[st.today];
+  if (td) { var n = 0; st.data.habits.forEach(function (h) { if (h.kind === 'positive' && h.cadence === 'daily' && !h.archived && !td.done[h.id]) n++; }); ghost[st.today] = n; }
+  st.L = HX.layout(st.D.days, { slotW: st.v.slotW, dayGap: st.v.dayGap, ghost: ghost });
+  clampScroll();
+}
+function bounds() { var W = st.v.W, w = st.L.width, pl = 80, pr = 170; if (w + pl + pr <= W) { var c = (w - W) / 2; return [c, c]; } return [-pl, w - W + pr]; }
+function clampScroll() { var b = bounds(); st.v.scrollX = clamp(st.v.scrollX, b[0], b[1]); if (st.v.target != null) st.v.target = clamp(st.v.target, b[0], b[1]); }
+function scrollToDate(date, instant) {
+  var day = st.L.byDate[date]; if (!day) return;
+  var W = st.v.W, b = bounds(), x = date === st.today ? day.x1 - W + 170 : day.mid - W / 2;
+  if (!instant && day.x0 - st.v.scrollX > 90 && day.x1 - st.v.scrollX < W - 120) return;   // already comfortably in view
+  x = clamp(x, b[0], b[1]);
+  if (instant || reduce) { st.v.scrollX = x; st.v.target = null; } else st.v.target = x;
+}
+function editable() { return st.sel <= st.today && U.daysBetween(st.sel, st.today) <= S().backfillDays; }
+function weekCount(habitId, date) { var ws = U.weekStart(date, S().weekStartsOn), we = U.addDays(ws, 6); return st.data.log.filter(function (e) { return e.habitId === habitId && e.date >= ws && e.date <= we; }).length; }
+
+/* ============================== HUD ====================================== */
+var EMBLEM = {
+  Strand: '<svg viewBox="0 0 30 30" fill="none" stroke-linecap="round" stroke-width="2.2"><path d="M4 6c9 0 13 18 22 18" stroke="#58efc9"/><path d="M4 24c9 0 13-18 22-18" stroke="#ffbe55"/><path d="M10 10.5v9M15 12.5v5M20 10.5v9" stroke="#e6f3f1" stroke-opacity=".6" stroke-width="1.5"/></svg>',
+  Cell: '<svg viewBox="0 0 30 30" fill="none" stroke-width="2"><path d="M15 3c7 0 12 5 12 12s-5 12-12 12S3 22 3 15 8 3 15 3z" stroke="#58efc9"/><circle cx="13" cy="14" r="5" fill="rgba(255,190,85,.35)" stroke="#ffbe55"/><circle cx="21" cy="19" r="1.6" fill="#e6f3f1"/><circle cx="19" cy="9" r="1.2" fill="#e6f3f1"/></svg>',
+  Organism: '<svg viewBox="0 0 30 30" fill="none" stroke-width="1.8"><circle cx="15" cy="15" r="4" stroke="#ffbe55" fill="rgba(255,190,85,.3)"/><circle cx="15" cy="6.5" r="3.4" stroke="#58efc9"/><circle cx="22.4" cy="10.8" r="3.4" stroke="#58efc9"/><circle cx="22.4" cy="19.2" r="3.4" stroke="#58efc9"/><circle cx="15" cy="23.5" r="3.4" stroke="#58efc9"/><circle cx="7.6" cy="19.2" r="3.4" stroke="#58efc9"/><circle cx="7.6" cy="10.8" r="3.4" stroke="#58efc9"/></svg>'
+};
+var SHIELD = '<svg viewBox="0 0 19 21"><path d="M9.5 1.5l7 4v10l-7 4-7-4v-10z" stroke-width="1.5"/></svg>';
+function renderHUD() {
+  var D = st.D, sg = D.stage;
+  $('#samplebar').hidden = !st.data.meta.sample;
+  $('#emblem').innerHTML = EMBLEM[sg.cur.phase] || EMBLEM.Strand;
+  $('#stageName').textContent = sg.cur.name; $('#stagePhase').textContent = sg.cur.phase + ' phase';
+  $('#stageFill').style.width = Math.max(2, sg.progress * 100) + '%';
+  $('#toNext').innerHTML = '<b>' + fmt(sg.toNext) + '</b> to ' + esc(sg.next.name) + (sg.next.phase !== sg.cur.phase ? ', the first ' + esc(sg.next.phase.toLowerCase()) + ' stage' : '');
+  $('#chainN').textContent = D.chain;
+  var sh = ''; for (var i = 0; i < D.shieldsMax; i++) sh += '<span class="' + (i < D.shields ? 'on' : 'off') + '">' + SHIELD + '</span>';
+  $('#shields').innerHTML = sh + '<span style="margin-left:4px"><b>' + D.shields + '</b> of ' + D.shieldsMax + ' shields</span>';
+  $('#bondedN').textContent = fmt(D.bonded); $('#looseN').textContent = fmt(D.loose);
+  var tot = Math.max(1, D.bonded + D.loose); $('#split i').style.width = (D.bonded / tot * 100) + '%'; $('#split u').style.width = (D.loose / tot * 100) + '%';
+  countTo(D.points);
+  var gw = D.genes.waiting.length, chip = $('#geneChip'); chip.hidden = !gw; chip.textContent = gw === 1 ? '1 gene ready' : gw + ' genes ready';
+  var waiting = st.data.media.filter(function (m) { return m.status !== 'imported'; }).length;
+  $('#navVault').innerHTML = 'Vault' + (waiting ? '<span class="dot" title="' + waiting + ' waiting for art"></span>' : '');
+  syncStatus();
+}
+var countRaf = null;
+function countTo(target) {
+  var el = $('#pts'), from = st.shownPts, t0 = performance.now();
+  cancelAnimationFrame(countRaf);
+  if (reduce || from === target) { st.shownPts = target; el.textContent = fmt(target); return; }
+  (function step(now) { var k = clamp((now - t0) / 650, 0, 1), e = 1 - Math.pow(1 - k, 3); st.shownPts = from + (target - from) * e; el.textContent = fmt(st.shownPts); if (k < 1) countRaf = requestAnimationFrame(step); else st.shownPts = target; })(t0);
+}
+function syncStatus() {
+  var b = $('#navData'); if (!b) return;
+  var warn = st.dirState !== 'linked' || st.writeError;
+  b.innerHTML = 'Data' + (warn ? '<span class="dot" style="background:var(--amber);box-shadow:0 0 8px var(--amber)" title="Not saving to a data file"></span>' : '');
+}
+
+/* ============================== deck ===================================== */
+function tile(h, day) {
+  var D = st.D, C = 213.6, ed = editable();
+  if (h.kind === 'negative') {
+    return '<button class="atom neg' + (st.negOpen ? ' open' : '') + '" data-habit="' + h.id + '" style="--hue:' + h.hue + '" ' + (ed ? '' : 'disabled') + ' title="' + esc(h.name) + '. Logged only when it happens.">' +
+      '<span class="nuc"><b>' + esc(h.sym) + '</b></span><span class="nm">' + esc(h.short) + '</span><span class="sub">log if it happened</span></button>';
+  }
+  var entry = day ? day.entries.find(function (e) { return e.habitId === h.id; }) : null, done = !!entry;
+  var sk = D.streaks[h.id] || { n: 0, days: 0, unit: 'day' }, pay = Math.max(1, Math.round(h.weight * E.thinTier(S(), sk.days).basePct));
+  var cls = 'atom', frac = done ? 1 : 0, sub;
+  if (h.cadence === 'weekly') {
+    var cnt = weekCount(h.id, st.sel), tg = h.weeklyTarget || 1; frac = Math.min(1, cnt / tg);
+    var locked = !done && cnt >= tg && !h.beyondTarget;
+    if (locked) cls += ' locked done';
+    sub = done ? '<i>+' + entry.points + '</i>' + cnt + ' of ' + tg + ' this week' : locked ? 'done this week' : '<i>+' + pay + '</i>' + cnt + ' of ' + tg + ' this week';
+  } else {
+    sub = done ? '<i>+' + entry.points + '</i>' : '<i>+' + pay + '</i>';
+    if (sk.n >= 2) sub += '<span title="Current run">' + sk.n + 'd run</span>';
+  }
+  if (done) { cls += ' done'; if (entry.bonus) sub += '<span style="color:var(--gold)">+' + entry.bonus.points + ' ' + esc(entry.bonus.name.toLowerCase()) + '</span>'; }
+  if (st.undoArm === h.id) { cls += ' arm'; }
+  return '<button class="' + cls + '" data-habit="' + h.id + '" style="--hue:' + h.hue + '" aria-pressed="' + done + '" ' + (ed ? '' : 'disabled') + ' title="' + esc(h.name) + '">' +
+    '<span class="nuc"><svg viewBox="0 0 76 76"><circle class="tr" cx="38" cy="38" r="34"/><circle class="fi" cx="38" cy="38" r="34" stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - frac)) + '"/></svg><b>' + esc(h.sym) + '</b></span>' +
+    '<span class="nm">' + (st.undoArm === h.id ? 'Tap again to undo' : esc(h.short)) + '</span><span class="sub">' + sub + '</span></button>';
+}
+function renderDeck() {
+  var D = st.D, day = D.byDate[st.sel], ed = editable(), isToday = st.sel === st.today;
+  var earned = 0; st.data.ledger.forEach(function (r) { if (r.date === st.sel) earned += r.amount; });
+  var h = '<div class="daybar"><button class="step" data-act="prev" aria-label="Previous day">‹</button><h2>' + (isToday ? 'Today, ' + MONN[U.parseISO(st.sel).getMonth()] + ' ' + U.parseISO(st.sel).getDate() : longDate(st.sel)) + '</h2>' +
+    '<button class="step" data-act="next" aria-label="Next day" ' + (isToday ? 'disabled' : '') + '>›</button>' +
+    '<span class="earn">' + (earned >= 0 ? '+' : '−') + fmt(Math.abs(earned)) + ' this day</span>' +
+    (isToday ? '' : '<button class="back" data-act="today">Back to today</button>') +
+    (ed ? '' : '<span class="note">View only. Check-ins stay open for ' + S().backfillDays + ' days.</span>') + '</div>';
+  ['health', 'spiritual'].forEach(function (cat) {
+    var hs = st.data.habits.filter(function (x) { return x.category === cat && !x.archived; });
+    if (!hs.length) return;
+    var dl = hs.filter(function (x) { return x.kind === 'positive' && x.cadence === 'daily'; }), dn = dl.filter(function (x) { return day && day.done[x.id]; }).length;
+    h += '<section class="cluster" data-cat="' + cat + '"><h3>' + (cat === 'health' ? 'Health' : 'Spiritual') + '<span>' + dn + ' of ' + dl.length + ' daily atoms in</span></h3><div class="atoms">';
+    hs.filter(function (x) { return x.kind === 'positive' && x.cadence === 'daily'; }).forEach(function (x) { h += tile(x, day); });
+    hs.filter(function (x) { return x.kind === 'positive' && x.cadence === 'weekly'; }).forEach(function (x) { h += tile(x, day); });
+    hs.filter(function (x) { return x.kind === 'negative'; }).forEach(function (x) { h += tile(x, day); });
+    h += '</div>';
+    if (st.negOpen && ed) hs.filter(function (x) { return x.kind === 'negative'; }).forEach(function (x) {
+      var cb = S().clawback;
+      h += '<div class="negpop"><div class="stepper"><button data-act="negMinus" aria-label="Fewer">−</button><output>' + st.negAmt + '<small>' + esc(x.unit || 'unit') + (st.negAmt === 1 ? '' : 's') + '</small></output><button data-act="negPlus" aria-label="More">+</button></div>' +
+        '<p><b>Logging it always pays +' + S().points.integrity + '.</b> The drinks cost up to ' + (x.weight * st.negAmt) + ' from loose points (never more than ' + cb.dayCap + ' in a day, ' + cb.weekCap + ' in a week). Bonded points are safe. A recovery action today earns most of it back.</p>' +
+        '<button class="btn hot" data-act="negLog" data-h="' + x.id + '">Log it honestly</button><button class="btn" data-act="negCancel">Cancel</button></div>';
+    });
+    h += '</section>';
+  });
+  $('#left').innerHTML = h;
+}
+
+/* ============================== side panel =============================== */
+function moleculeSvg(day) {
+  var ids = [], seen = {};
+  st.data.routines.forEach(function (r) { r.habits.forEach(function (id) { var hb = st.habits[id]; if (hb && !seen[id] && hb.cadence === 'daily' && hb.kind === 'positive' && !hb.archived) { seen[id] = 1; ids.push(id); } }); });
+  st.data.habits.forEach(function (hb) { if (!seen[hb.id] && hb.cadence === 'daily' && hb.kind === 'positive' && !hb.archived) ids.push(hb.id); });
+  var n = ids.length, R = 54, cx = 75, cy = 75, pos = ids.map(function (id, i) { var a = Math.PI * 2 * i / n - Math.PI / 2 + Math.PI / n; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
+  var done = function (id) { return day && day.done[id]; }, s = '<svg viewBox="0 0 150 150" role="img" aria-label="Today\'s molecule">';
+  for (var i = 0; i < n; i++) {
+    var j = (i + 1) % n, a = ids[i], b = ids[j], on = done(a) && done(b);
+    var dbl = on && st.data.routines.some(function (r) { return r.habits.indexOf(a) >= 0 && r.habits.indexOf(b) >= 0 && day.bonds.indexOf(r.id) >= 0; });
+    var ln = 'x1="' + pos[i][0].toFixed(1) + '" y1="' + pos[i][1].toFixed(1) + '" x2="' + pos[j][0].toFixed(1) + '" y2="' + pos[j][1].toFixed(1) + '"';
+    s += dbl ? '<line class="e dbl" ' + ln + '/><line class="e dbl2" ' + ln + '/>' : '<line class="e' + (on ? ' on' : '') + '" ' + ln + '/>';
+  }
+  ids.forEach(function (id, i) {
+    var hb = st.habits[id], d = done(id), col = 'hsl(' + hb.hue + ' 88% 68%)';
+    s += '<circle cx="' + pos[i][0].toFixed(1) + '" cy="' + pos[i][1].toFixed(1) + '" r="13" stroke="' + col + '" ' + (d ? 'style="fill:' + col + '"' : 'stroke-opacity=".45"') + '/><text x="' + pos[i][0].toFixed(1) + '" y="' + (pos[i][1] + 0.5).toFixed(1) + '" fill="' + (d ? '#04202a' : col) + '"' + (d ? '' : ' fill-opacity=".7"') + '>' + esc(hb.sym) + '</text>';
+  });
+  var dn = ids.filter(done).length, stable = day && day.stable;
+  s += '<text class="ctr" x="75" y="' + (stable ? 75 : 71) + '"' + (stable ? ' style="fill:var(--gold);font-size:15px"' : '') + '>' + (stable ? 'Stable' : dn + ' / ' + n) + '</text>' + (stable ? '' : '<text class="ctr2" x="75" y="89">atoms in</text>') + '</svg>';
+  return { svg: s, done: dn, n: n, stable: stable };
+}
+function renderSide() {
+  var D = st.D, day = D.byDate[st.sel], h = '', isToday = st.sel === st.today;
+  /* a stable week earned a gene: choose one of the three on offer */
+  if (D.genes.waiting.length) {
+    var gEnd = D.genes.waiting[0], gStart = U.addDays(gEnd, -6), more = D.genes.waiting.length - 1;
+    if (!D.genes.offers.some(function (t) { return t.id === st.genePick; })) st.genePick = null;
+    h += '<div class="card gene" id="geneCard"><h3>Express a gene<span>' + (more ? more + ' more after this' : 'one choice') + '</span></h3><p>The week of ' + shortDate(gStart).slice(4) + ' to ' + shortDate(gEnd).slice(4) + ' closed stable. Choose one. It is permanent and works from today on.</p><div class="gopts">' +
+      D.genes.offers.map(function (t) { var lv = D.fx.levels[t.id] || 0; return '<button class="gopt" data-act="geneSel" data-t="' + esc(t.id) + '" aria-pressed="' + (st.genePick === t.id) + '"><b>' + esc(t.name) + '</b><span>' + esc(t.text) + '</span>' + pips(lv, t.max, true) + '</button>'; }).join('') +
+      '</div><button class="btn gold sm" data-act="geneGo" ' + (st.genePick ? '' : 'disabled') + '>Express this gene</button></div>';
+  }
+  /* repair bay: any negative entry on the selected day */
+  (day ? day.entries : []).filter(function (e) { return e.kind === 'negative'; }).forEach(function (e) {
+    var hb = st.habits[e.habitId] || { short: e.habitId }, cb = e.clawback || { taken: 0 }, what = esc(hb.short) + ', ' + plural(e.amount, e.unit || 'unit');
+    if (e.repair) {
+      h += '<div class="card repair fixed"><h3>Repaired pair<span>' + what + '</span></h3><p>' + esc(e.repair.label) + '. <b>+' + e.repair.reearned + '</b> of the ' + cb.taken + ' clawed points came back, and the seam stays on your strand as a repair.</p></div>';
+    } else if (e.loggedOn === st.today) {
+      var pick = st.repairPick[e.id], re = Math.round(cb.taken * D.fx.repairRate);
+      h += '<div class="card repair" id="repairBay"><h3>Repair bay<span>' + what + '</span></h3><p><b>−' + cb.taken + '</b> clawed from loose points. Repair it today and <b>+' + re + '</b> comes straight back.</p><ol>' +
+        '<li class="ok"><div><b>Recognize</b>Done. You logged it, which is how a cell finds the lesion.</div></li>' +
+        '<li class="' + (pick ? 'ok' : '') + '"><div><b>Excise and fill</b>Do one recovery action now.<div class="chips">' +
+        S().repair.actions.map(function (a) { return '<button data-act="pickRepair" data-log="' + e.id + '" data-a="' + esc(a.id) + '" aria-pressed="' + (pick === a.id) + '">' + esc(a.label) + '</button>'; }).join('') + '</div></div></li>' +
+        '<li><div><b>Ligate</b>Seal the backbone. The pair is marked repaired.<div class="chips"><button class="btn gold sm" data-act="seal" data-log="' + e.id + '" ' + (pick ? '' : 'disabled') + '>I did it. Seal the repair</button></div></div></li></ol></div>';
+    } else {
+      h += '<div class="card repair"><h3>Damaged pair<span>' + what + '</span></h3><p><b>−' + cb.taken + '</b> clawed. The repair window closed at the end of the day it was logged, so this pair stays damaged. Nothing else is lost.</p></div>';
+    }
+  });
+  var m = moleculeSvg(day), left = m.n - m.done;
+  h += '<div class="card"><h3>' + (isToday ? 'Today\'s molecule' : 'That day\'s molecule') + '<span>' + (m.stable ? '+' + D.fx.molecule + ' earned' : left + ' to stable, +' + D.fx.molecule) + '</span></h3><div class="mol' + (m.stable ? ' stable' : '') + '" id="molBox">' + m.svg + '<div class="rts">' +
+    st.data.routines.map(function (r) { var c = r.habits.filter(function (id) { return day && day.done[id]; }).length, ok = c === r.habits.length; return '<div class="' + (ok ? 'ok' : '') + '"><b>' + esc(r.name) + '</b>' + (ok ? 'Bonded, +' + D.fx.bond : c + ' of ' + r.habits.length + ' in') + '</div>'; }).join('') + '</div></div></div>';
+
+  /* week */
+  var ws = U.weekStart(st.sel, S().weekStartsOn), wk = D.weeks.find(function (w) { return w.start === ws; }) || { solid: 0, closed: false, stable: false, end: U.addDays(ws, 6) };
+  var need = S().stableWeek.minSolidDays, cells = '';
+  for (var i = 0; i < 7; i++) {
+    var dt = U.addDays(ws, i), dd = D.byDate[dt], c = '';
+    if (dd) c = dd.stable ? 'stb' : dd.solid ? 'sol' : dd.state === 'active' ? 'act' : dd.state === 'shielded' ? 'shd' : dd.state === 'gap' ? 'gap' : '';
+    cells += '<div class="' + c + (dt === st.sel ? ' now' : '') + '" title="' + shortDate(dt) + '"><i></i>' + DAYN[U.parseISO(dt).getDay()].slice(0, 2) + '</div>';
+  }
+  var looseWk = 0; st.data.ledger.forEach(function (r) { if (r.amount > 0 && !(D.bondedThrough && r.date <= D.bondedThrough)) looseWk += r.remaining; });
+  var msg;
+  if (wk.closed) msg = wk.stable ? 'This week closed stable. Its gains are <b>bonded for good</b>, and it earned a shield and a gene.' : 'This week closed with <b>' + wk.solid + ' of ' + need + '</b> solid days, so its gains stayed loose and carried forward.';
+  else if (wk.solid >= need) msg = '<b>' + wk.solid + ' solid days.</b> When this week closes, <b>' + fmt(looseWk) + ' loose points</b> bond for good and you earn a shield and a gene.';
+  else msg = '<b>' + wk.solid + ' of ' + need + '</b> solid days (' + S().stableWeek.solidDayMinCheckins + '+ check-ins each). ' + (need - wk.solid) + ' more and this week bonds <b>' + fmt(looseWk) + ' loose points</b> and earns a shield and a gene.';
+  h += '<div class="card"><h3>This week<span>' + shortDate(ws).slice(4) + ' to ' + shortDate(wk.end).slice(4) + '</span></h3><div class="week">' + cells + '</div><p>' + msg + '</p></div>';
+  /* genome: what has been expressed so far */
+  var ex = S().traits.filter(function (t) { return D.fx.levels[t.id]; });
+  h += '<div class="card"><h3>Genome<span>' + (D.genes.expressed ? plural(D.genes.expressed, 'gene') + ' expressed' : 'nothing expressed yet') + '</span></h3>' +
+    (ex.length ? '<div class="genome">' + ex.map(function (t) { return '<div><b>' + esc(t.name) + '</b>' + pips(D.fx.levels[t.id], t.max) + '<span>' + esc(t.text) + (D.fx.levels[t.id] > 1 ? ', ' + D.fx.levels[t.id] + ' times over' : '') + '</span></div>'; }).join('') + '</div>'
+      : '<p>Every week that closes stable lets you express one gene: a permanent change to how your strand pays, protects or repairs.</p>') + '</div>';
+  $('#side').innerHTML = h;
+}
+function pips(n, max, next) { var o = '<i class="pips">'; for (var i = 0; i < max; i++) o += '<u class="' + (i < n ? 'on' : next && i === n ? 'nx' : '') + '"></u>'; return o + '</i>'; }
+
+/* ============================== actions ================================== */
+var armTimer = null;
+function tapHabit(id, el) {
+  Sfx.init();
+  var h = st.habits[id]; if (!h || !editable()) return;
+  if (h.kind === 'negative') { st.negOpen = !st.negOpen; st.negAmt = 1; renderDeck(); return; }
+  var entry = st.data.log.find(function (e) { return e.habitId === id && e.date === st.sel; });
+  if (entry) {
+    if (st.undoArm === id) {
+      clearTimeout(armTimer); st.undoArm = null;
+      var r = E.removeEntry(st.data, entry.id, st.today);
+      if (r.error) { toast(esc(r.error), 'bad'); renderDeck(); return; }
+      Sfx.undo(); recompute(); renderAll(); Store.save();
+    } else { st.undoArm = id; renderDeck(); clearTimeout(armTimer); armTimer = setTimeout(function () { st.undoArm = null; renderDeck(); }, 2600); }
+    return;
+  }
+  if (el.classList.contains('locked')) return;
+  var rect = $('.nuc', el).getBoundingClientRect();
+  var res = E.checkIn(st.data, id, st.sel, { today: st.today });
+  if (res.error) { toast(esc(res.error), 'bad'); return; }
+  celebrate(res, rect);
+}
+function fly(x, y, entry, hue) {
+  var cv = $('#helix').getBoundingClientRect(), sx = st.v.target != null ? st.v.target : st.v.scrollX;
+  var p = HX.slotScreen(st.L, Object.assign({}, st.v, { scrollX: sx }), entry.id); if (!p) return;
+  var tx = cv.left + p.x, ty = cv.top + p.y;
+  st.v.ripples.push({ x: p.wx, t0: clock() + 0.3, power: 7 });
+  if (reduce) return;
+  var el = document.createElement('div'); el.className = 'fly'; el.style.setProperty('--c', 'hsl(' + hue + ' 88% 68%)'); el.style.left = '0'; el.style.top = '0';
+  document.body.appendChild(el);
+  var mx = (x + tx) / 2, my = Math.min(y, ty) - 70;
+  el.animate([{ transform: 'translate(' + x + 'px,' + y + 'px) scale(1.5)' }, { transform: 'translate(' + mx + 'px,' + my + 'px) scale(1.1)', offset: 0.55 }, { transform: 'translate(' + tx + 'px,' + ty + 'px) scale(.5)' }], { duration: 330, easing: 'cubic-bezier(.4,0,.6,1)' }).onfinish = function () { el.remove(); FX.burst(tx, ty, 'hsl(' + hue + ' 88% 70%)', 9, 2.6); };
+}
+function celebrate(res, rect) {
+  var entry = res.entry, now = clock(), cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  recompute();
+  if (entry) st.v.anims[entry.id] = now + (entry.kind === 'positive' ? 0.28 : 0);
+  scrollToDate(st.sel);
+  renderAll(); Store.save();
+  var day = st.D.byDate[st.sel], nDone = day ? day.pos : 1, molBox = $('#molBox'), mr = molBox ? molBox.getBoundingClientRect() : rect;
+  var mxm = mr.left + 75, mym = mr.top + mr.height / 2;
+  res.events.forEach(function (e) {
+    if (e.type === 'checkin') {
+      Sfx.check(nDone - 1); floater('+' + e.points, cx, cy - 34, 'hsl(' + e.habit.hue + ' 90% 74%)', true);
+      fly(cx, cy, entry, e.habit.hue);
+      var t = $('.atom[data-habit="' + e.habit.id + '"]'); if (t) t.classList.add('pop');
+    } else if (e.type === 'bonus') {
+      setTimeout(function () { Sfx.bonus(e.bonus.type); FX.burst(cx, cy, '#ffe9a6', e.bonus.type === 'rare' ? 70 : e.bonus.type === 'chest' ? 42 : 24, e.bonus.type === 'rare' ? 9 : 6); if (e.bonus.type !== 'crit') flash('gold'); }, 170);
+      floater(e.bonus.name + ' +' + e.bonus.points, cx, cy - 72, '#ffe9a6', true, 170);
+    } else if (e.type === 'bond') {
+      setTimeout(function () { Sfx.bond(); }, 400); floater(e.routine.name + ' bonded +' + e.points, mr.left + mr.width / 2, mr.top - 26, '#e6f3f1', false, 400);
+    } else if (e.type === 'molecule') {
+      setTimeout(function () { Sfx.molecule(); flash('gold'); FX.burst(mxm, mym, '#ffe9a6', 60, 7); }, 580); floater('Stable molecule +' + e.points, mr.left + mr.width / 2, mr.top - 58, '#ffe9a6', true, 580);
+    } else if (e.type === 'weeklyTarget') {
+      floater('Weekly target met', cx, cy + 58, '#e6f3f1', false, 300);
+    } else if (e.type === 'negative') {
+      Sfx.damage(); flash('red');
+      var sl = st.L.byLog[entry.id]; if (sl) st.v.ripples.push({ x: sl.x, t0: now, power: 12 });
+    } else if (e.type === 'integrity') {
+      floater('+' + e.points + ' honest log', cx, cy - 34, '#58efc9', true, 120);
+    } else if (e.type === 'clawback') {
+      floater(e.taken ? '−' + e.taken + ' clawed from loose points' : 'Nothing loose to claw back', cx, cy + 4, '#ff7d9c', false, 700);
+      if (e.allowed < e.requested) setTimeout(function () { toast('The cap held: this entry asked for ' + e.requested + ', the limit let through ' + e.allowed + '.', ''); }, 900);
+    } else if (e.type === 'repair') {
+      Sfx.repair(); flash('gold'); FX.burst(cx, cy, '#ffe9a6', 40, 6);
+      floater('+' + e.points + ' re-earned. Pair repaired', cx, cy - 40, '#ffe9a6', true);
+      var s2 = st.L.byLog[entry.id]; if (s2) st.v.ripples.push({ x: s2.x, t0: now, power: 9 });
+    } else if (e.type === 'stage') {
+      setTimeout(function () { stageCinematic(e.milestone); }, 950);
+    } else if (e.type === 'compound') {
+      setTimeout(function () { Sfx.bonus('chest'); toast('<b>Compound completed: ' + esc(e.milestone.name) + '.</b> ' + esc(e.milestone.note || '') + '. A card slot opened in the vault.', 'gold', { action: { label: 'Open the vault', fn: function () { openDrawer('vault'); } } }); }, 1150);
+    }
+  });
+}
+function renderAll() { renderHUD(); renderDeck(); renderSide(); if (st.drawer) renderDrawer(); }
+function refreshAll() { recompute(); renderAll(); }
+function selectDate(d) { if (d > st.today) return; st.sel = d; st.negOpen = false; st.undoArm = null; scrollToDate(d); renderDeck(); renderSide(); }
+
+function act(a, el) {
+  Sfx.init();
+  if (a === 'prev') selectDate(U.addDays(st.sel, -1));
+  else if (a === 'next') selectDate(U.addDays(st.sel, 1));
+  else if (a === 'today') selectDate(st.today);
+  else if (a === 'negMinus') { st.negAmt = Math.max(1, st.negAmt - 1); renderDeck(); }
+  else if (a === 'negPlus') { st.negAmt = Math.min(20, st.negAmt + 1); renderDeck(); }
+  else if (a === 'negCancel') { st.negOpen = false; renderDeck(); }
+  else if (a === 'negLog') {
+    var t = $('.atom.neg .nuc'), rect = t ? t.getBoundingClientRect() : el.getBoundingClientRect();
+    var res = E.checkIn(st.data, el.dataset.h, st.sel, { today: st.today, amount: st.negAmt });
+    st.negOpen = false; if (res.error) { toast(esc(res.error), 'bad'); return; }
+    celebrate(res, rect);
+    setTimeout(function () { var b = $('#repairBay'); if (b) b.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' }); }, 300);
+  }
+  else if (a === 'geneSel') { st.genePick = el.dataset.t; renderSide(); }
+  else if (a === 'geneGo') {
+    var gr = el.getBoundingClientRect(), g = E.pickTrait(st.data, st.D.genes.waiting[0], st.genePick, { today: st.today });
+    if (g.error) { toast(esc(g.error), 'bad'); return; }
+    st.genePick = null; Sfx.gene(); flash('gold'); FX.burst(gr.left + gr.width / 2, gr.top, '#ffe9a6', 70, 8); FX.burst(gr.left + gr.width / 2, gr.top, '#58efc9', 40, 6);
+    recompute(); renderAll(); Store.save(); $('#side').scrollTop = 0;
+    toast('<b>' + esc(g.trait.name) + ' expressed' + (g.level > 1 ? ', level ' + g.level : '') + '.</b> ' + esc(g.trait.text) + ', from today.', 'gold', { ms: 8000 });
+  }
+  else if (a === 'pickRepair') { st.repairPick[el.dataset.log] = el.dataset.a; renderSide(); }
+  else if (a === 'seal') {
+    var r2 = el.getBoundingClientRect(), rs = E.repair(st.data, el.dataset.log, st.repairPick[el.dataset.log], { today: st.today });
+    if (rs.error) { toast(esc(rs.error), 'bad'); return; }
+    celebrate(rs, r2); $('#side').scrollTop = 0;
+  }
+}
+
+/* ============================== cinematic + player ======================= */
+var cineTimer = null;
+function closeCine() { var c = $('#cine'); clearTimeout(cineTimer); c.classList.remove('on', 'lite'); c.innerHTML = ''; }
+/* Small stages celebrate without stopping the check-in flow; phase changes and film stages take the whole screen. */
+function stageCinematic(m, full) {
+  Sfx.init(); Sfx.stage();
+  var c = $('#cine'), slot = st.data.media.find(function (x) { return x.id === m.id; }), lite = !full && !m.media && !m.phaseChange;
+  closeCine();
+  var body = m.media ? 'This stage earns a film: your strand exactly as it stood on ' + shortDate(m.reachedOn) + ', gaps and repairs included. Its slot is open in the vault.' : 'Your strand keeps growing. The next stage is already in sight.';
+  c.innerHTML = '<canvas></canvas><div class="inner"><div class="ph">' + (m.phaseChange ? 'Phase change. The ' + esc(m.phase.toLowerCase()) + ' phase begins' : esc(m.phase) + ' phase, new stage') + '</div><h1>' + esc(m.name) + '</h1><p>' + body + '</p>' + (lite ? '' : '<div class="row"><button class="btn go" data-c="close">Keep going</button>' + (m.media ? '<button class="btn" data-c="vault">Open the vault</button>' : '') + '<span id="cineFilm"></span></div>') + '</div>';
+  c.classList.add('on'); if (lite) { c.classList.add('lite'); cineTimer = setTimeout(closeCine, 2700); }
+  var cv = $('canvas', c), g = cv.getContext('2d'), t0 = performance.now(), rays = [];
+  for (var i = 0; i < 90; i++) rays.push({ a: Math.random() * 6.283, s: 0.3 + Math.random(), l: 40 + Math.random() * 220, h: Math.random() < 0.5 ? 165 : 42 });
+  (function loop(now) {
+    if (!c.classList.contains('on') || !cv.isConnected) return;
+    var w = cv.width = innerWidth, hh = cv.height = innerHeight, t = (now - t0) / 1000; g.clearRect(0, 0, w, hh); g.globalCompositeOperation = 'lighter';
+    rays.forEach(function (r) { var d = ((t * r.s * 260) % (Math.max(w, hh) * 0.75)), x = w / 2 + Math.cos(r.a) * d, y = hh * 0.45 + Math.sin(r.a) * d; g.strokeStyle = 'hsla(' + r.h + ',90%,70%,' + Math.max(0, 0.34 * Math.min(1, d / 160) * (1 - d / (Math.max(w, hh) * 0.75))) + ')'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(r.a) * r.l * 0.3, y + Math.sin(r.a) * r.l * 0.3); g.stroke(); });
+    if (!reduce) requestAnimationFrame(loop);
+  })(t0);
+  c.onclick = function (ev) { var b = ev.target.closest('[data-c]'); if (!b) return; var k = b.dataset.c; closeCine(); if (k === 'vault') openDrawer('vault'); if (k === 'film') openPlayer(m.id); };
+  if (slot) Media.resolve(slot).then(function (f) { var sp = $('#cineFilm'); if (f && sp) sp.innerHTML = '<button class="btn gold" data-c="film">Play the film</button>'; });
+}
+function openPlayer(id) {
+  var slot = st.data.media.find(function (x) { return x.id === id; }); if (!slot) return;
+  Media.resolve(slot).then(function (f) {
+    if (!f) { toast('No file in that slot yet.', 'bad'); return; }
+    var c = $('#cine');
+    c.innerHTML = '<button class="btn close" data-c="close">Close</button>' + (slot.kind === 'video' ? '<video src="' + esc(f.url) + '" controls autoplay playsinline></video>' : '<img class="full" src="' + esc(f.url) + '" alt="">');
+    c.classList.add('on'); c.onclick = function (ev) { if (ev.target === c || ev.target.closest('[data-c]')) closeCine(); };
+  });
+}
+
+/* ============================== drawer =================================== */
+function openDrawer(name) { st.drawer = name; renderDrawer(); $('#drawer').classList.add('on'); $('#scrim').classList.add('on'); $('#drawer').setAttribute('aria-hidden', 'false'); if (name === 'vault') Media.scan(); }
+function closeDrawer() { st.drawer = null; $('#drawer').classList.remove('on'); $('#scrim').classList.remove('on'); $('#drawer').setAttribute('aria-hidden', 'true'); }
+function renderDrawer() {
+  var t = { vault: ['Vault', vaultHtml], ledger: ['Ledger', ledgerHtml], settings: ['Settings', settingsHtml], data: ['Data', dataHtml] }[st.drawer];
+  if (!t) return; var body = $('#drawerBody'), sc = body.scrollTop;
+  $('#drawerTitle').textContent = t[0]; body.innerHTML = t[1](); body.scrollTop = sc;
+}
+function slotHtml(id, o) {
+  var slot = st.data.media.find(function (m) { return m.id === id; }), ms = st.data.milestones.find(function (m) { return m.id === id; });
+  var kindCls = o.kind === 'image' ? ' card-kind' : '';
+  if (!slot) return '<div class="slot locked' + kindCls + '"><div class="art">Locked</div><div class="meta"><b>' + esc(o.name) + '</b><span>' + esc(o.req) + '</span></div></div>';
+  var f = st.mediaCache[id], ok = slot.status === 'imported' && f, art, acts;
+  if (ok) {
+    art = (o.kind === 'video' ? '<video src="' + esc(f.url) + '#t=15" muted preload="metadata"></video>' : '<img src="' + esc(f.url) + '" alt="">') + '<button class="play" data-act="mplay" data-id="' + id + '" aria-label="Open">' + (o.kind === 'video' ? '<span>▶</span>' : '') + '</button>';
+    acts = '<button class="btn sm go" data-act="mplay" data-id="' + id + '">' + (o.kind === 'video' ? 'Play' : 'View') + '</button>' + (ms && ms.kind === 'stage' ? '<button class="btn sm" data-act="mreplay" data-id="' + id + '">Replay the stage change</button>' : '') + '<button class="btn sm" data-act="mimport" data-id="' + id + '">Replace file</button>';
+  } else {
+    art = slot.status === 'missing' ? 'File not found. It was at ' + esc(slot.file || '') : 'Unlocked. Waiting for its ' + (o.kind === 'video' ? 'film' : 'card');
+    acts = '<button class="btn sm gold" data-act="mreq" data-id="' + id + '">Copy media request</button><button class="btn sm" data-act="mreqsave" data-id="' + id + '">Save request</button><button class="btn sm" data-act="mimport" data-id="' + id + '">Import file</button>';
+  }
+  return '<div class="slot ' + (ok ? 'has' : 'awaiting') + kindCls + '"><div class="art">' + art + '</div><div class="meta"><b>' + esc(o.name) + '</b><span>' + esc(o.sub) + (ms ? '. Earned ' + shortDate(ms.reachedOn) : '') + '</span><span><code>' + MEDIA_DIR + '/' + id + (o.kind === 'video' ? '.mp4' : '.png') + '</code></span><div class="acts">' + acts + '</div></div></div>';
+}
+function vaultHtml() {
+  var D = st.D, h = '<p>Films and cards are the rarest reward in Strand. They only come from big stage changes and completed compounds, never from an ordinary day. Each one is made from your strand as it stood at that moment.</p>';
+  h += '<h3>Stage films</h3><div class="slots">';
+  D.stage.list.filter(function (s) { return s.media; }).forEach(function (s) { h += slotHtml('stage-' + s.id, { name: s.name, sub: s.phase + ' phase', kind: 'video', req: 'Reach ' + s.name + ' at ' + fmt(s.at) + ' points' }); });
+  h += '</div><h3>Compound cards</h3><div class="slots">';
+  S().compounds.forEach(function (c) { h += slotHtml('compound-' + c.id, { name: c.name, sub: c.formula, kind: 'image', req: c.note }); });
+  h += '</div><h3>How art gets into a slot</h3><ul><li>When a slot unlocks, press <b>Copy media request</b> and give that text to Claude. It describes your strand at that moment: every day, gap, shield, damaged pair and repair.</li><li>Save the file Claude returns into the <code>' + MEDIA_DIR + '</code> folder beside this page, using the file name shown on the slot. Or press <b>Import file</b> and pick it.</li><li>The slot finds it on the next visit. A file for a milestone you have not earned is ignored.</li></ul>';
+  return h;
+}
+var SRC = { checkin: 'Check-in', bonus: 'Bonus', bond: 'Routine bond', molecule: 'Stable molecule', integrity: 'Honest log', clawback: 'Clawback', repair: 'Repair re-earn' };
+function ledgerHtml() {
+  var D = st.D, bt = D.bondedThrough, rows = st.data.ledger.slice().reverse();
+  var h = '<p><b>' + fmt(D.points) + '</b> points: <b>' + fmt(D.bonded) + '</b> bonded for good' + (bt ? ' (through ' + shortDate(bt) + ')' : '') + ' and <b>' + fmt(D.loose) + '</b> still loose. Clawed back so far: ' + fmt(D.clawedTotal) + ', of which ' + fmt(D.reearned) + ' re-earned by repair. Every movement is listed here and in the data file.</p>';
+  h += '<table><thead><tr><th>Day</th><th>What</th><th>Habit</th><th class="n">Points</th><th>State</th></tr></thead><tbody>';
+  rows.slice(0, 500).forEach(function (r) {
+    var hb = st.habits[r.habitId], state;
+    if (r.amount < 0) state = '<span class="tag c">taken from loose</span>';
+    else if (bt && r.date <= bt) state = '<span class="tag b">bonded</span>' + (r.remaining < r.amount ? ' <span class="tag c">' + (r.amount - r.remaining) + ' clawed earlier</span>' : '');
+    else if (r.protected) state = '<span class="tag">protected</span>';
+    else state = '<span class="tag">loose</span>' + (r.remaining < r.amount ? ' <span class="tag c">' + (r.amount - r.remaining) + ' clawed</span>' : '');
+    h += '<tr><td>' + shortDate(r.date) + '</td><td>' + (SRC[r.source] || esc(r.source)) + (r.note ? ' <span style="color:var(--faint)">' + esc(r.note) + '</span>' : '') + '</td><td>' + (hb ? esc(hb.short) : '') + '</td><td class="n ' + (r.amount < 0 ? 'negv' : 'pos') + '">' + (r.amount < 0 ? '−' : '+') + Math.abs(r.amount) + '</td><td>' + state + '</td></tr>';
+  });
+  h += '</tbody></table>' + (rows.length > 500 ? '<p>Showing the latest 500 of ' + rows.length + '. The data file has them all.</p>' : '');
+  return h;
+}
+var NUMS = [
+  ['points.integrity', 'Honest-log reward', 'Paid every time a negative is logged'],
+  ['points.bond', 'Routine bond', 'All habits of a routine in one day'],
+  ['points.stableMolecule', 'Stable molecule', 'Every daily habit in every category'],
+  ['clawback.dayCap', 'Clawback cap, one day', ''], ['clawback.weekCap', 'Clawback cap, any 7 days', ''],
+  ['repair.rate', 'Repair re-earn rate', '0.6 means 60% comes back'],
+  ['shields.starting', 'Shields to start with', ''], ['shields.max', 'Most shields you can hold', ''],
+  ['stableWeek.solidDayMinCheckins', 'Check-ins that make a solid day', ''], ['stableWeek.minSolidDays', 'Solid days that make a stable week', 'A stable week bonds gains and earns a shield'],
+  ['activeDay.minCheckins', 'Check-ins that keep the chain', 'Fewer than this is a missed day'],
+  ['stableDay.fractionPerCategory', 'Share of daily habits for a stable molecule', '1 means all of them'],
+  ['traitOfferCount', 'Genes offered at each pick', ''], ['bonusChanceCap', 'Highest bonus odds any habit can reach', '0.6 means 60%'],
+  ['backfillDays', 'Days you can go back to check in', ''], ['stageOverflowStep', 'Points per generation after the last stage', '']
+];
+function getPath(o, p) { return p.split('.').reduce(function (a, k) { return a[k]; }, o); }
+function setPath(o, p, v) { var ks = p.split('.'), last = ks.pop(); ks.reduce(function (a, k) { return a[k]; }, o)[last] = v; }
+function settingsHtml() {
+  var s = S(), h = '<p>Every number in the game is here. Changes save at once. Point values apply from the next check-in; streak, shield and week rules re-read the whole log.</p>';
+  h += '<h3>Habits and their weight</h3><p>Points paid at full value. For alcohol, the number is the cost per drink.</p><table class="hw"><thead><tr><th></th><th>Habit</th><th class="n">Points</th><th class="n">Per week</th><th>Archived</th></tr></thead><tbody>';
+  st.data.habits.forEach(function (hb) {
+    h += '<tr><td class="sym" style="color:hsl(' + hb.hue + ' 88% 68%)">' + esc(hb.sym) + '</td><td>' + esc(hb.name) + '</td><td class="n"><input type="number" min="0" max="500" data-hw="' + hb.id + '" value="' + hb.weight + '"></td><td class="n">' + (hb.cadence === 'weekly' ? '<input type="number" min="1" max="7" data-ht="' + hb.id + '" value="' + (hb.weeklyTarget || 1) + '">' : '') + '</td><td><input type="checkbox" data-ha="' + hb.id + '" ' + (hb.archived ? 'checked' : '') + ' aria-label="Archive ' + esc(hb.short) + '"></td></tr>';
+  });
+  h += '</tbody></table><p>Archiving hides a habit from the deck. Its history stays on the strand.</p><h3>Rules</h3><div class="grid2">';
+  NUMS.forEach(function (n) { h += '<label>' + n[1] + (n[2] ? '<small>' + n[2] + '</small>' : '') + '</label><input type="number" step="any" data-num="' + n[0] + '" value="' + getPath(s, n[0]) + '">'; });
+  h += '</div><h3>Schedules and lists</h3><p>Routines, the thinning schedule, bonus odds, genes, stages, compounds and recovery actions. Edit the JSON and apply.</p>';
+  var adv = { routines: st.data.routines, thinning: s.thinning, bonuses: s.bonuses, traits: s.traits, repairActions: s.repair.actions, stages: s.stages, compounds: s.compounds };
+  h += '<textarea id="advJson" spellcheck="false" style="min-height:260px">' + esc(JSON.stringify(adv, null, 1)) + '</textarea><div class="row"><button class="btn go" data-act="advApply">Apply</button><button class="btn" data-act="resetSettings">Reset every number to its starting value</button></div>';
+  return h;
+}
+function dataHtml() {
+  var h = '', cls = 'status', msg, btn = '';
+  if (!Store.canLink) { msg = 'This browser cannot write a data file directly, so your data is kept in this browser. Use Chrome or Edge to link a file, and export backups in the meantime.'; }
+  else if (st.dirState === 'none') { msg = '<b>Not linked to a data file yet.</b> Everything is saved in this browser only. Link the folder where Strand lives and it writes <code>' + DATA_FILE + '</code> there after every change.'; btn = '<button class="btn go" data-act="link">Link my Strand folder</button>'; }
+  else if (st.dirState === 'paused') { msg = '<b>Linked to "' + esc(st.dirName) + '", waiting for permission.</b> The browser asks once per visit.'; btn = '<button class="btn go" data-act="reconnect">Reconnect</button><button class="btn" data-act="unlink">Unlink</button>'; }
+  else if (st.writeError) { cls += ' bad'; msg = '<b>Could not write the data file:</b> ' + esc(st.writeError) + '. Your data is still safe in this browser.'; btn = '<button class="btn go" data-act="reconnect">Try again</button>'; }
+  else { cls += ' ok'; msg = '<b>Saving to ' + esc(st.dirName) + '/' + DATA_FILE + '.</b> ' + (st.lastWrite ? 'Last written at ' + st.lastWrite.toLocaleTimeString() + '.' : 'Up to date.'); btn = '<button class="btn" data-act="unlink">Unlink</button>'; }
+  h += '<h3>Your data file</h3><div class="' + cls + '"><i></i><span>' + msg + '</span></div><div class="row">' + btn + '</div>';
+  h += '<h3>Backup</h3><p>Export writes everything: habits, log, points ledger, shields, gene picks, milestones, media index and settings. Importing a backup replaces what is here.</p><div class="row"><button class="btn" data-act="export">Export a backup</button><button class="btn" data-act="importBackup">Import a backup</button><button class="btn" data-act="wipe">Wipe everything</button></div>';
+  h += '<h3>Import entries</h3><p>Merge check-ins you dictated somewhere else. Paste the JSON or pick a file. An entry whose import ID was already merged is skipped, so importing the same file twice is safe.</p><textarea id="impText" spellcheck="false" placeholder=\'{ "strandImport": 1, "entries": [ { "importId": "2026-11-15-a", "date": "2026-11-15", "habit": "water" } ] }\'></textarea><div class="row"><button class="btn go" data-act="importEntries">Merge these entries</button><button class="btn" data-act="importEntriesFile">Pick a file</button></div>';
+  if (st.importReport) h += '<pre>' + esc(st.importReport) + '</pre>';
+  h += '<h3>Notes: the entry import format</h3><pre>{\n  "strandImport": 1,\n  "entries": [\n    { "importId": "2026-11-15-a", "date": "2026-11-15", "habit": "water" },\n    { "importId": "2026-11-15-b", "date": "2026-11-15", "habit": "gym", "note": "legs" },\n    { "importId": "2026-11-14-c", "date": "2026-11-14", "habit": "alcohol", "amount": 2 }\n  ]\n}</pre><ul><li><b>importId</b>: any text, unique per entry. Re-importing the same ID is skipped.</li><li><b>date</b>: YYYY-MM-DD, the day it happened. Not in the future.</li><li><b>habit</b>: one of ' + st.data.habits.map(function (x) { return '<code>' + esc(x.id) + '</code>'; }).join(', ') + '. The short name or symbol also works.</li><li><b>amount</b>: only for alcohol, the number of drinks. <b>note</b>: optional.</li><li>A bare list <code>[ {...}, {...} ]</code> or a single entry object is accepted too.</li><li>A habit already logged for that day is skipped, not doubled. Bonus rolls for imported entries happen at import time.</li></ul>';
+  h += '<h3>Notes: the media format</h3><ul><li>Files live in a folder named <code>' + MEDIA_DIR + '</code> beside this page (inside your linked Strand folder).</li><li>File name = the milestone ID shown on the slot: <code>stage-protocell.mp4</code>, <code>compound-glycine.png</code>.</li><li>Films: .mp4 (H.264) or .webm. Cards: .png, .jpg or .webp.</li><li>The <b>media request</b> a slot copies is JSON with <code>milestone</code>, <code>deliver.saveAs</code>, <code>stats</code>, <code>habits</code> and <code>strand</code> (one object per day: date, state, and one slot per log entry marked pair, damaged or repaired).</li></ul>';
+  h += '<h3>Notes: room for more modules</h3><p>Habits is one module. The data file keeps a <code>modules</code> block and every log entry and ledger row carries a <code>module</code> name, so a second module (calories and macros is reserved as <code>nutrition</code>) can write to the same file and the same points ledger without changing what is here.</p>';
+  return h;
+}
+function drawerAct(a, el) {
+  var id = el.dataset.id, slot = id && st.data.media.find(function (m) { return m.id === id; });
+  if (a === 'mplay') openPlayer(id);
+  else if (a === 'mreplay') { var ms = st.data.milestones.find(function (m) { return m.id === id; }); closeDrawer(); if (ms) stageCinematic(ms, true); }
+  else if (a === 'mreq' || a === 'mreqsave') {
+    var txt = JSON.stringify(E.mediaRequest(st.data, id), null, 1);
+    if (a === 'mreqsave') { download('media-request-' + id + '.json', txt); return; }
+    var okc = function () { toast('<b>Copied.</b> Paste it to Claude and ask for the ' + (slot.kind === 'video' ? 'film' : 'card') + ' for ' + esc(id) + '.', 'gold'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(okc, function () { download('media-request-' + id + '.json', txt); });
+    else download('media-request-' + id + '.json', txt);
+  }
+  else if (a === 'mimport') pickFile(slot.kind === 'video' ? 'video/mp4,video/webm' : 'image/png,image/jpeg,image/webp').then(function (f) { if (f) Media.importFile(slot, f); });
+  else if (a === 'link') Store.link();
+  else if (a === 'reconnect') Store.reconnect();
+  else if (a === 'unlink') Store.unlink();
+  else if (a === 'export') download('strand-backup-' + st.today + '.json', (st.data.derived = E.snapshot(st.D), Store.text()));
+  else if (a === 'importBackup') pickFile('.json,application/json').then(function (f) {
+    if (!f) return;
+    f.text().then(function (t) { var d = E.normalize(JSON.parse(t)); st.data = d; st.mediaCache = {}; boot2(true); Store.save(); toast('<b>Backup restored.</b> ' + plural(d.log.length, 'entry').replace('entrys', 'entries') + ', ' + fmt(st.D.points) + ' points.', 'gold'); })
+      .catch(function (e) { toast('That file could not be imported: ' + esc(e.message), 'bad'); });
+  });
+  else if (a === 'wipe') modal('Wipe everything?', 'This clears the log, the ledger, milestones and settings, here and in the linked data file. Export a backup first if you might want it back.', [
+    { label: 'Export a backup first', fn: function () { drawerAct('export', el); } },
+    { label: 'Wipe everything', cls: 'hot', fn: function () { st.data = E.newData(); st.mediaCache = {}; boot2(true); Store.save(); toast('<b>Wiped.</b> A fresh strand starts with your next check-in.', ''); } }
+  ]);
+  else if (a === 'importEntries' || a === 'importEntriesFile') {
+    var go = function (t) {
+      var payload; try { payload = JSON.parse(t); } catch (e) { toast('That is not valid JSON: ' + esc(e.message), 'bad'); return; }
+      var r = E.importEntries(st.data, payload, { today: st.today });
+      if (r.error) { toast(esc(r.error), 'bad'); return; }
+      var now = clock(); r.added.forEach(function (e, i) { st.v.anims[e.id] = now + 0.1 + i * 0.06; });
+      st.importReport = 'Merged ' + r.added.length + ', skipped ' + r.skipped.length + ', problems ' + r.errors.length + (r.skipped.length ? '\n\nSkipped\n  ' + r.skipped.join('\n  ') : '') + (r.errors.length ? '\n\nProblems\n  ' + r.errors.join('\n  ') : '');
+      refreshAll(); Store.save();
+      toast('<b>Merged ' + plural(r.added.length, 'entry').replace('entrys', 'entries') + '.</b> ' + r.skipped.length + ' skipped, ' + r.errors.length + ' with problems.', r.errors.length ? 'bad' : 'gold');
+      if (r.added.length) { Sfx.init(); Sfx.bonus('crit'); }
+      var sg = r.events.filter(function (e) { return e.type === 'stage'; }).pop(); if (sg) setTimeout(function () { closeDrawer(); stageCinematic(sg.milestone); }, 700);
+    };
+    if (a === 'importEntries') go($('#impText').value); else pickFile('.json,application/json').then(function (f) { if (f) f.text().then(go); });
+  }
+  else if (a === 'advApply') {
+    try {
+      var o = JSON.parse($('#advJson').value), s = S();
+      if (!Array.isArray(o.routines) || !Array.isArray(o.stages) || !o.stages.length || !Array.isArray(o.thinning) || !o.thinning.length || !Array.isArray(o.bonuses) || !o.bonuses.length) throw new Error('routines, stages, thinning and bonuses must be non-empty lists');
+      st.data.routines = o.routines; s.thinning = o.thinning; s.bonuses = o.bonuses; s.stages = o.stages; s.compounds = o.compounds || []; s.repair.actions = o.repairActions || []; if (Array.isArray(o.traits)) s.traits = o.traits;
+      refreshAll(); Store.save(); toast('<b>Applied.</b>', 'gold');
+    } catch (e) { toast('Not applied: ' + esc(e.message), 'bad'); }
+  }
+  else if (a === 'resetSettings') modal('Reset every number?', 'Weights, caps, odds, stages and routines go back to their starting values. Your log and points stay as they are.', [{ label: 'Reset', cls: 'go', fn: function () { st.data.settings = U.clone(E.DEFAULT_SETTINGS); st.data.routines = U.clone(E.DEFAULT_ROUTINES); st.data.habits.forEach(function (hb) { var d = E.DEFAULT_HABITS.find(function (x) { return x.id === hb.id; }); if (d) { hb.weight = d.weight; if (d.weeklyTarget) hb.weeklyTarget = d.weeklyTarget; } }); refreshAll(); Store.save(); } }]);
+}
+function drawerChange(el) {
+  var v = Number(el.value);
+  if (el.dataset.hw) { if (!(v >= 0)) return; st.habits[el.dataset.hw].weight = v; }
+  else if (el.dataset.ht) { if (!(v >= 1)) return; st.habits[el.dataset.ht].weeklyTarget = Math.round(v); }
+  else if (el.dataset.ha) { st.habits[el.dataset.ha].archived = el.checked; if (!el.checked) delete st.habits[el.dataset.ha].archived; }
+  else if (el.dataset.num) { if (!isFinite(v) || el.value === '') return; setPath(S(), el.dataset.num, v); }
+  else return;
+  recompute(); renderHUD(); renderDeck(); renderSide(); Store.save();
+}
+
+/* ============================== strand canvas ============================ */
+var cv, ctx, mini, mctx, frames = 0, slow = 0, lastT = 0;
+function resize() {
+  var f = $('#field'), dpr = Math.min(2, window.devicePixelRatio || 1), W = f.clientWidth, H = f.clientHeight, v = st.v;
+  v.W = W; v.H = H; v.dpr = dpr; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  var top = 46, bot = 112;
+  v.amp = clamp((H - top - bot) / 2 - 12, 30, 122); v.cy = top + (H - top - bot) / 2 + 2;
+  mini.width = Math.round(mini.clientWidth * dpr); mini.height = Math.round(mini.clientHeight * dpr);
+  if (st.L) clampScroll();
+}
+function frame(now) {
+  var v = st.v, t = (now - st.t0) / 1000, dt = now - lastT; lastT = now;
+  if (!document.hidden && st.L) {
+    if (!reduce) v.phase = 0.6 + t * 0.2;
+    if (v.target != null) { v.scrollX += (v.target - v.scrollX) * 0.16; if (Math.abs(v.target - v.scrollX) < 0.5) { v.scrollX = v.target; v.target = null; } }
+    else if (Math.abs(v.vel) > 0.15) { v.scrollX += v.vel; v.vel *= 0.92; clampScroll(); }
+    v.ripples = v.ripples.filter(function (r) { return t - r.t0 < 1.4; });
+    v.t = t; v.habits = st.habits; v.routines = st.routines; v.bondedThrough = st.D.bondedThrough; v.today = st.today; v.selected = st.sel;
+    HX.draw(ctx, st.L, v);
+    if (frames % 4 === 0) HX.mini(mctx, st.L, v, mini.clientWidth, mini.clientHeight, v.dpr);
+    frames++; if (dt > 34) slow++; if (frames === 150) { if (slow > 60) v.bloom = false; }
+  }
+  requestAnimationFrame(frame);
+}
+function tipFor(p) {
+  var D = st.D, tip = '';
+  if (p.slot) {
+    var s = p.slot.s, e = st.data.log.find(function (x) { return x.id === s.logId; }), hb = st.habits[s.habitId] || { name: s.habitId };
+    tip = '<b>' + esc(hb.name) + '</b><br><span class="t2">' + shortDate(p.day.d.date) + '</span><br>';
+    if (!e) return tip;
+    if (s.t === 'pair') tip += '+' + e.points + ' base' + (e.bonus ? ', <span style="color:var(--gold)">+' + e.bonus.points + ' ' + esc(e.bonus.name.toLowerCase()) + '</span>' : '') + (e.streakAtLog >= 7 ? '<br><span class="t2">Run of ' + e.streakAtLog + ' days: thinner base, better bonus odds</span>' : '');
+    else if (s.t === 'damaged') tip += '<span style="color:var(--lesion)">Damaged pair.</span> ' + plural(e.amount, e.unit) + ', −' + e.clawback.taken + ' clawed, +' + S().points.integrity + ' for logging it' + (e.loggedOn === st.today ? '<br><span class="t2">Repair is open today</span>' : '');
+    else tip += '<span style="color:var(--gold)">Repaired pair.</span> ' + plural(e.amount, e.unit) + ', −' + e.clawback.taken + ' clawed, +' + e.repair.reearned + ' re-earned<br><span class="t2">' + esc(e.repair.label) + '</span>';
+  } else if (p.day) {
+    var d = p.day.d, bonded = D.bondedThrough && d.date <= D.bondedThrough;
+    tip = '<b>' + longDate(d.date) + '</b><br>';
+    if (d.state === 'shielded' && !d.slots.length) tip += '<span style="color:var(--frost)">A shield was spent here.</span> Nothing logged, chain kept.';
+    else if (d.state === 'gap' && !d.slots.length) tip += 'Gap. Nothing logged and no shield left, so the chain restarted.';
+    else if (!d.slots.length) tip += 'Nothing logged yet.';
+    else tip += plural(d.slots.length, 'base pair') + (d.stable ? ', <span style="color:var(--gold)">stable molecule</span>' : '') + (d.bonds.length ? ', ' + plural(d.bonds.length, 'routine bond') : '');
+    tip += '<br><span class="t2">' + (bonded ? 'Bonded for good' : 'Gains still loose') + '. Click to open the day.</span>';
+  }
+  return tip;
+}
+function bindCanvas() {
+  var drag = null, moved = 0, tipEl = $('#tip');
+  cv.addEventListener('pointerdown', function (e) { drag = { x: e.clientX, sx: st.v.scrollX, last: e.clientX }; moved = 0; st.v.target = null; st.v.vel = 0; cv.setPointerCapture(e.pointerId); cv.classList.add('drag'); });
+  cv.addEventListener('pointermove', function (e) {
+    var r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+    if (drag) { var dx = e.clientX - drag.x; moved = Math.max(moved, Math.abs(dx)); st.v.scrollX = drag.sx - dx; st.v.vel = drag.last - e.clientX; drag.last = e.clientX; clampScroll(); tipEl.classList.remove('on'); return; }
+    var p = HX.pick(st.L, st.v, mx, my), inBand = my > st.v.cy - st.v.amp - 36 && my < st.v.cy + st.v.amp + 60;
+    st.v.hoverLog = p.slot ? p.slot.s.logId : null; st.v.hoverDate = p.day && inBand ? p.day.d.date : null;
+    if (p.day && inBand) { tipEl.innerHTML = tipFor(p); tipEl.classList.add('on'); var tw = tipEl.offsetWidth; tipEl.style.left = clamp(mx + 16, 8, r.width - tw - 8) + 'px'; tipEl.style.top = Math.max(8, my - tipEl.offsetHeight - 14) + 'px'; }
+    else tipEl.classList.remove('on');
+  });
+  function up(e) {
+    cv.classList.remove('drag'); if (!drag) return; drag = null;
+    if (moved < 5) { st.v.vel = 0; var r = cv.getBoundingClientRect(), p = HX.pick(st.L, st.v, e.clientX - r.left, e.clientY - r.top); if (p.day) selectDate(p.day.d.date); }
+  }
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', function () { drag = null; cv.classList.remove('drag'); });
+  cv.addEventListener('pointerleave', function () { st.v.hoverLog = null; st.v.hoverDate = null; tipEl.classList.remove('on'); });
+  cv.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    if (e.ctrlKey || Math.abs(e.deltaY) > Math.abs(e.deltaX) && !e.shiftKey) { var r = cv.getBoundingClientRect(); zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left); }
+    else { st.v.target = null; st.v.scrollX += e.deltaX || e.deltaY; clampScroll(); }
+  }, { passive: false });
+  var md = false;
+  function jump(e) { var r = mini.getBoundingClientRect(), fx = clamp((e.clientX - r.left) / r.width, 0, 1); st.v.target = null; st.v.scrollX = fx * st.L.width - st.v.W / 2; clampScroll(); }
+  mini.addEventListener('pointerdown', function (e) { md = true; mini.setPointerCapture(e.pointerId); jump(e); });
+  mini.addEventListener('pointermove', function (e) { if (md) jump(e); });
+  mini.addEventListener('pointerup', function () { md = false; });
+}
+function zoom(k, atX) {
+  var v = st.v, old = v.slotW, nw = clamp(old * k, 6, 34); if (nw === old) return;
+  if (atX == null) atX = v.W / 2;
+  var frac = (v.scrollX + atX) / Math.max(1, st.L.width);
+  v.slotW = nw; v.dayGap = Math.max(4, Math.round(nw * 0.6)); relayout();
+  v.target = null; v.scrollX = frac * st.L.width - atX; clampScroll();
+}
+
+/* ============================== boot ===================================== */
+function dayTurnNotices(prev) {
+  if (!prev || !prev.asOf || prev.asOf === st.today) return;
+  var D = st.D;
+  D.shieldedDates.filter(function (d) { return (prev.shieldedDates || []).indexOf(d) < 0 && d > prev.asOf; }).forEach(function (d) {
+    toast('<b>A shield covered ' + shortDate(d) + '.</b> Nothing was logged that day, and your chain survived. ' + plural(D.shields, 'shield') + ' left.', 'frost', { ms: 12000 });
+  });
+  D.gapDates.filter(function (d) { return d > prev.asOf; }).slice(-1).forEach(function (d) { toast('<b>' + shortDate(d) + ' is a gap.</b> No shield was left, so the chain restarts today. Nothing you earned was lost.', '', { ms: 12000 }); });
+  if (D.bondedThrough && (!prev.bondedThrough || D.bondedThrough > prev.bondedThrough)) toast('<b>Last week closed stable.</b> Its gains are bonded for good, and you earned a shield and a gene to express.', 'gold', { ms: 12000 });
+  else { var lw = D.weeks.filter(function (w) { return w.closed; }).pop(); if (lw && lw.end >= prev.asOf && !lw.stable) toast('<b>Last week closed with ' + lw.solid + ' of ' + S().stableWeek.minSolidDays + ' solid days.</b> Its gains stay loose and carry into this week.', '', { ms: 12000 }); }
+}
+function boot2(silent) {
+  var prev = st.data.derived;
+  st.today = U.toISO(new Date()); st.sel = st.today;
+  recompute(); st.shownPts = silent ? st.shownPts : 0;
+  scrollToDate(st.today, true); renderAll();
+  if (!silent) dayTurnNotices(prev);
+  Media.scan();
+}
+function boot() {
+  cv = $('#helix'); ctx = cv.getContext('2d'); mini = $('#mini'); mctx = mini.getContext('2d');
+  try { Sfx.on = localStorage.getItem('strand.sound') !== 'off'; } catch (e) {}
+  $('#soundBtn').setAttribute('aria-pressed', Sfx.on); $('#soundBtn').title = Sfx.on ? 'Sound is on' : 'Sound is off';
+  Store.init().then(function () {
+    resize(); boot2(); Store.save(); bindCanvas(); requestAnimationFrame(frame);
+    if (st.dirState === 'paused') toast('<b>Your data file needs one click.</b> The browser asks for permission once per visit.', '', { sticky: true, action: { label: 'Reconnect', fn: Store.reconnect } });
+  });
+  window.addEventListener('resize', function () { resize(); });
+  $('#left').addEventListener('click', function (ev) { var b = ev.target.closest('[data-habit]'); if (b) return tapHabit(b.dataset.habit, b); var a = ev.target.closest('[data-act]'); if (a) act(a.dataset.act, a); });
+  $('#side').addEventListener('click', function (ev) { var a = ev.target.closest('[data-act]'); if (a) act(a.dataset.act, a); });
+  $('#drawerBody').addEventListener('click', function (ev) { var a = ev.target.closest('[data-act]'); if (a) drawerAct(a.dataset.act, a); });
+  $('#drawerBody').addEventListener('change', function (ev) { drawerChange(ev.target); });
+  $$('.nav [data-open]').forEach(function (b) { b.addEventListener('click', function () { openDrawer(b.dataset.open); }); });
+  $('#stagebox').addEventListener('click', function () { openDrawer('vault'); });
+  $('#geneChip').addEventListener('click', function () { var c = $('#geneCard'); if (!c) return; $('#side').scrollTop = 0; c.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' }); c.classList.remove('pulse'); void c.offsetWidth; c.classList.add('pulse'); });
+  $('#drawerClose').addEventListener('click', closeDrawer); $('#scrim').addEventListener('click', closeDrawer);
+  $('#soundBtn').addEventListener('click', function () { Sfx.on = !Sfx.on; try { localStorage.setItem('strand.sound', Sfx.on ? 'on' : 'off'); } catch (e) {} this.setAttribute('aria-pressed', Sfx.on); this.title = Sfx.on ? 'Sound is on' : 'Sound is off'; if (Sfx.on) { Sfx.init(); Sfx.check(2); } });
+  $('#zoomIn').addEventListener('click', function () { zoom(1.25); }); $('#zoomOut').addEventListener('click', function () { zoom(0.8); });
+  $('#goToday').addEventListener('click', function () { selectDate(st.today); scrollToDate(st.today, false); st.v.target = clamp(st.L.byDate[st.today].x1 - st.v.W + 170, bounds()[0], bounds()[1]); });
+  $('#clearSample').addEventListener('click', function () {
+    modal('Clear the sample?', 'The fake entries go away and your own strand starts empty. Your settings stay.', [{ label: 'Clear the sample and start', cls: 'go', fn: function () {
+      var keep = { settings: st.data.settings, habits: st.data.habits, routines: st.data.routines }; st.data = E.newData(); Object.assign(st.data, keep); st.mediaCache = {}; boot2(true); Store.save();
+      toast('<b>Your strand starts here.</b> Tap your first atom.', 'gold');
+    } }]);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { if ($('#cine').classList.contains('on')) closeCine(); else if ($('#modal').classList.contains('on')) $('#modal').classList.remove('on'); else if (st.drawer) closeDrawer(); }
+  });
+  setInterval(function () { var now = U.toISO(new Date()); if (now !== st.today) { var prev = st.data.derived; boot2(true); dayTurnNotices(prev); Store.save(); } }, 30000);
+}
+window.Strand = { state: st, engine: E, modules: { habits: { id: 'habits', name: 'Habits' } }, registerModule: function (m) { window.Strand.modules[m.id] = m; } };
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
+
+</script>
+</body>
+</html>
