@@ -461,7 +461,7 @@ function ghStatusHtml() {
 function tile(h, day) {
   var D = st.D, C = 213.6, ed = editable();
   if (h.kind === 'negative') {
-    return '<button class="atom neg' + (st.negOpen ? ' open' : '') + '" data-habit="' + h.id + '" style="--hue:' + h.hue + '" ' + (ed ? '' : 'disabled') + ' title="' + esc(h.name) + '. Logged only when it happens.">' +
+    return '<button class="atom neg' + (st.negOpen === h.id ? ' open' : '') + '" data-habit="' + h.id + '" style="--hue:' + h.hue + '" ' + (ed ? '' : 'disabled') + ' title="' + esc(h.name) + '. Logged only when it happens.">' +
       '<span class="nuc"><b>' + esc(h.sym) + '</b></span><span class="nm">' + esc(h.short) + '</span><span class="sub">log if it happened</span></button>';
   }
   var entry = day ? day.entries.find(function (e) { return e.habitId === h.id; }) : null, done = !!entry;
@@ -508,10 +508,10 @@ function renderDeck() {
     hs.filter(function (x) { return x.kind === 'positive' && x.cadence === 'occasional'; }).forEach(function (x) { h += tile(x, day); });
     hs.filter(function (x) { return x.kind === 'negative'; }).forEach(function (x) { h += tile(x, day); });
     h += '</div>';
-    if (st.negOpen && ed) hs.filter(function (x) { return x.kind === 'negative'; }).forEach(function (x) {
-      var cb = S().clawback;
-      h += '<div class="negpop"><div class="stepper"><button data-act="negMinus" aria-label="Fewer">−</button><output>' + st.negAmt + '<small>' + esc(x.unit || 'unit') + (st.negAmt === 1 ? '' : 's') + '</small></output><button data-act="negPlus" aria-label="More">+</button></div>' +
-        '<p><b>Logging it always pays +' + S().points.integrity + '.</b> The drinks cost up to ' + (x.weight * st.negAmt) + ' from loose points (never more than ' + cb.dayCap + ' in a day, ' + cb.weekCap + ' in a week). Bonded points are safe. A recovery action today earns most of it back.</p>' +
+    if (st.negOpen && ed) hs.filter(function (x) { return x.kind === 'negative' && x.id === st.negOpen; }).forEach(function (x) {
+      var cb = S().clawback, n = x.single ? 1 : st.negAmt;
+      h += '<div class="negpop">' + (x.single ? '' : '<div class="stepper"><button data-act="negMinus" aria-label="Fewer">−</button><output>' + st.negAmt + '<small>' + esc(x.unit || 'unit') + (st.negAmt === 1 ? '' : 's') + '</small></output><button data-act="negPlus" aria-label="More">+</button></div>') +
+        '<p><b>Logging it always pays +' + S().points.integrity + '.</b> ' + (x.single ? 'It costs up to ' : 'The ' + esc(x.unit || 'unit') + 's cost up to ') + (x.weight * n) + ' from loose points (never more than ' + cb.dayCap + ' in a day, ' + cb.weekCap + ' in a week). Bonded points are safe. A recovery action today earns most of it back.</p>' +
         '<button class="btn hot" data-act="negLog" data-h="' + x.id + '">Log it honestly</button><button class="btn" data-act="negCancel">Cancel</button></div>';
     });
     h += '</section>';
@@ -561,7 +561,7 @@ function renderSide() {
       h += '<div class="card repair" id="repairBay"><h3>Repair bay<span>' + what + '</span></h3><p><b>−' + cb.taken + '</b> clawed from loose points. Repair it today and <b>+' + re + '</b> comes straight back.</p><ol>' +
         '<li class="ok"><div><b>Recognize</b>Done. You logged it, which is how a cell finds the lesion.</div></li>' +
         '<li class="' + (pick ? 'ok' : '') + '"><div><b>Excise and fill</b>Do one recovery action now.<div class="chips">' +
-        S().repair.actions.map(function (a) { var twin = st.data.habits.find(function (hb) { return hb.repairAction === a.id && day && day.done[hb.id]; }); return '<button data-act="pickRepair" data-log="' + e.id + '" data-a="' + esc(a.id) + '" aria-pressed="' + (pick === a.id) + '"' + (twin ? ' disabled title="Already checked in as a habit today. One walk counts once."' : '') + '>' + esc(a.label) + '</button>'; }).join('') + '</div></div></li>' +
+        E.repairActionsFor(st.data, st.habits[e.habitId]).map(function (a) { var used = E.repairUsed(st.data, a.id, st.today); var twin = st.data.habits.find(function (hb) { return hb.repairAction === a.id && day && day.done[hb.id]; }); return '<button data-act="pickRepair" data-log="' + e.id + '" data-a="' + esc(a.id) + '" aria-pressed="' + (pick === a.id) + '"' + (twin ? ' disabled title="Already checked in as a habit today. One walk counts once."' : used ? ' disabled title="Already sealed a repair today."' : '') + '>' + esc(a.label) + '</button>'; }).join('') + '</div></div></li>' +
         '<li><div><b>Ligate</b>Seal the backbone. The pair is marked repaired.<div class="chips"><button class="btn gold sm" data-act="seal" data-log="' + e.id + '" ' + (pick ? '' : 'disabled') + '>I did it. Seal the repair</button></div></div></li></ol></div>';
     } else {
       h += '<div class="card repair"><h3>Damaged pair<span>' + what + '</span></h3><p><b>−' + cb.taken + '</b> clawed. The repair window closed at the end of the day it was logged, so this pair stays damaged. Nothing else is lost.</p></div>';
@@ -601,7 +601,7 @@ var armTimer = null;
 function tapHabit(id, el) {
   Sfx.init();
   var h = st.habits[id]; if (!h || !editable()) return;
-  if (h.kind === 'negative') { st.negOpen = !st.negOpen; st.negAmt = 1; renderDeck(); return; }
+  if (h.kind === 'negative') { st.negOpen = st.negOpen === h.id ? false : h.id; st.negAmt = 1; renderDeck(); return; }
   var entry = st.data.log.find(function (e) { return e.habitId === id && e.date === st.sel; });
   if (entry) {
     if (st.undoArm === id) {

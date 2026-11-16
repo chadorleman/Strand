@@ -71,11 +71,19 @@ var DEFAULT_SETTINGS = {
 
   repair: {
     rate: 0.60,                       // share of the clawed-back points one recovery action re-earns
+    // The pool of recovery actions. Each negative habit offers its own list (habit.repairActions).
+    // An action can seal one repair a day.
     actions: [
-      { id: 'hydrate', label: 'Drink 16 oz of water' },
-      { id: 'walk',    label: 'Walk for 10 minutes' },
-      { id: 'reflect', label: 'Write down what led to it' },
-      { id: 'still',   label: 'Five extra minutes of mindfulness' }
+      { id: 'hydrate',    label: 'Drink 16 oz of water' },
+      { id: 'walk',       label: 'Walk for 10 minutes' },
+      { id: 'reflect',    label: 'Write down what led to it' },
+      { id: 'still',      label: 'Five extra minutes of mindfulness' },
+      { id: 'pushups',    label: 'An extra set of push-ups' },
+      { id: 'coldShower', label: 'Take a cold shower' },
+      { id: 'journal',    label: 'Journal about it' },
+      { id: 'pray',       label: 'Pray about it' },
+      { id: 'scripture',  label: 'Read an extra Bible passage' },
+      { id: 'phoneOut',   label: 'Put the phone outside the bedroom tonight' }
     ]
   },
 
@@ -143,9 +151,11 @@ var DEFAULT_HABITS = [
   { id: 'vitamins',    name: 'Vitamins and supplements',          short: 'Vitamins',    sym: 'Vi', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 3,  hue: 162 },
   { id: 'walk',        name: 'Walk',                              short: 'Walk',        sym: 'Wk', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 5,  hue: 112, repairAction: 'walk', addedOn: '2026-11-16' },
   { id: 'wholeFast',   name: 'Whole-day fast',                    short: 'Full fast',   sym: 'Fx', category: 'health',    kind: 'positive', cadence: 'occasional', weight: 25, hue: 186, addedOn: '2026-11-16' },
-  { id: 'alcohol',     name: 'Alcohol intake',                    short: 'Alcohol',     sym: 'Et', category: 'health',    kind: 'negative', cadence: 'event',  weight: 12, unit: 'drink', hue: 344 },
+  { id: 'alcohol',     name: 'Alcohol intake',                    short: 'Alcohol',     sym: 'Et', category: 'health',    kind: 'negative', cadence: 'event',  weight: 12, unit: 'drink', hue: 344, repairActions: ['hydrate', 'walk', 'reflect', 'still'] },
+  { id: 'soloTime',    name: 'Solo time',                         short: 'Solo time',   sym: 'So', category: 'health',    kind: 'negative', cadence: 'event',  weight: 10, unit: 'time', single: true, hue: 318, addedOn: '2026-11-16', repairActions: ['walk', 'pushups', 'coldShower', 'still', 'reflect', 'journal', 'pray', 'scripture'] },
   { id: 'dailyText',   name: 'Daily text read',                   short: 'Daily text',  sym: 'Dt', category: 'spiritual', kind: 'positive', cadence: 'daily',  weight: 5,  hue: 46 },
   { id: 'bible',       name: 'Daily Bible reading',               short: 'Bible reading', sym: 'Br', category: 'spiritual', kind: 'positive', cadence: 'daily', weight: 8, hue: 36 },
+  { id: 'lateBrowsing', name: 'Late browsing',                   short: 'Late browsing', sym: 'Lb', category: 'spiritual', kind: 'negative', cadence: 'event', weight: 20, unit: 'time', single: true, hue: 356, addedOn: '2026-11-16', repairActions: ['pray', 'scripture', 'journal', 'reflect', 'phoneOut', 'walk', 'still', 'pushups', 'coldShower'] },
   { id: 'study',       name: 'Weekly personal study project',     short: 'Personal study', sym: 'Ps', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 20, hue: 24 },
   { id: 'midweek1',    name: 'Midweek meeting prep, step 1',      short: 'Midweek 1',   sym: 'M1', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 7,  hue: 54, stepOf: 'midweek', addedOn: '2026-11-16' },
   { id: 'midweek2',    name: 'Midweek meeting prep, step 2',      short: 'Midweek 2',   sym: 'M2', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 8,  hue: 60, stepOf: 'midweek', addedOn: '2026-11-16' },
@@ -157,7 +167,8 @@ var RETIRED_HABITS = [
   { id: 'midweek',     name: 'Midweek meeting prep',              short: 'Midweek prep', sym: 'Mw', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 15, hue: 54, archived: true, archivedOn: '2026-11-16' },
   { id: 'watchtower',  name: 'Watchtower study prep for Sunday',  short: 'Watchtower prep', sym: 'Wt', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 15, hue: 14, archived: true, archivedOn: '2026-11-16' }
 ];
-var HABIT_SET = 2, HABITS_V2_SINCE = '2026-11-16';
+var HABIT_SET = 3, HABITS_V2_SINCE = '2026-11-16';
+var ALCOHOL_ACTIONS = ['hydrate', 'walk', 'reflect', 'still'];
 
 /* The four domains. Habits can be added freely, each in one of these. */
 var DOMAINS = [
@@ -236,12 +247,18 @@ function normalize(d) {
       if (r && c.rule && c.rule.stableDays === r[0]) { c.rule.stableDays = r[1]; c.note = r[2]; }
     });
   }
-  // Migration to habit set 2: add the new habits (dated, so the past is untouched) and
+  // Migrations by habit set. Set 2: add the new habits (dated, so the past is untouched) and
   // retire the single-step prep habits; their old entries count for both new steps.
   if (d.meta && typeof d.meta === 'object' && !(d.meta.habitSet >= HABIT_SET) && Array.isArray(d.habits)) {
     var have = {}; d.habits.forEach(function (h) { have[h.id] = h; });
     DEFAULT_HABITS.forEach(function (h) { if (!have[h.id]) d.habits.push(clone(h)); });
-    ['midweek', 'watchtower'].forEach(function (id) { var h = have[id]; if (h && !h.archived) setArchived(h, true, HABITS_V2_SINCE); });
+    if (!(d.meta.habitSet >= 2)) ['midweek', 'watchtower'].forEach(function (id) { var h = have[id]; if (h && !h.archived) setArchived(h, true, HABITS_V2_SINCE); });
+    // habit set 3: per-habit repair lists, and the new recovery actions in the pool
+    if (have.alcohol && !have.alcohol.repairActions) have.alcohol.repairActions = ALCOHOL_ACTIONS.slice();
+    if (d.settings && d.settings.repair && Array.isArray(d.settings.repair.actions)) {
+      var pool = {}; d.settings.repair.actions.forEach(function (a) { pool[a.id] = true; });
+      DEFAULT_SETTINGS.repair.actions.forEach(function (a) { if (!pool[a.id]) d.settings.repair.actions.push(clone(a)); });
+    }
     d.meta.habitSet = HABIT_SET;
   }
   ['meta', 'settings', 'habits', 'routines', 'log', 'ledger', 'rolls', 'milestones', 'traits', 'media', 'importedIds', 'derived', 'modules'].forEach(function (k) {
@@ -261,6 +278,12 @@ function activeOn(h, date) {
 function setArchived(h, on, today) {
   if (on) { h.archived = true; h.archivedOn = today; }
   else { delete h.archived; delete h.archivedOn; }
+}
+/* The recovery actions offered for a negative habit (its own list, or the whole pool). */
+function repairActionsFor(data, h) {
+  var pool = data.settings.repair.actions, ids = h && h.repairActions;
+  if (!ids) return pool.slice();
+  return ids.map(function (id) { return pool.find(function (a) { return a.id === id; }); }).filter(Boolean);
 }
 /* Has a repair on this day already used this action? */
 function repairUsed(data, actionId, date) {
@@ -610,7 +633,7 @@ function checkIn(data, habitId, date, opt) {
       (newest first), bonded structure never touched
    ========================================================================== */
 function logNegative(data, h, date, opt, today, now) {
-  var S = data.settings, units = Math.max(1, Math.round(Number(opt.amount) || 1));
+  var S = data.settings, units = h.single ? 1 : Math.max(1, Math.round(Number(opt.amount) || 1));
   var before = derive(data, today);
   var seq = ++data.meta.seq;
   var entry = { id: 'L' + seq, seq: seq, module: 'habits', date: date, habitId: h.id, kind: 'negative', amount: units, unit: h.unit || 'unit', loggedAt: now, loggedOn: today };
@@ -658,7 +681,10 @@ function repair(data, logId, actionId, opt) {
   if (!e || e.kind !== 'negative') return { error: 'Nothing to repair there.' };
   if (e.repair) return { error: 'That pair is already repaired.' };
   if (e.loggedOn !== today) return { error: 'The repair window closed at the end of the day it was logged.' };
-  var action = S.repair.actions.find(function (a) { return a.id === actionId; }) || { id: actionId, label: actionId };
+  var offered = repairActionsFor(data, data.habits.find(function (h) { return h.id === e.habitId; }));
+  var action = offered.find(function (a) { return a.id === actionId; });
+  if (!action) return { error: 'That recovery action is not offered for this habit.' };
+  if (repairUsed(data, action.id, today)) return { error: '"' + action.label + '" already sealed a repair today. Pick another action.', code: 'actionUsed' };
   var twin = data.habits.find(function (h) { return h.repairAction === action.id && data.log.some(function (x) { return x.habitId === h.id && x.date === today; }); });
   if (twin) return { error: 'Today\'s ' + twin.short.toLowerCase() + ' is already checked in as a habit. One walk counts once, so pick another action.', code: 'habitUsed' };
   var seq = ++data.meta.seq;
@@ -822,7 +848,7 @@ function buildSample(today) {
 }
 
 root.StrandEngine = {
-  SCHEMA: SCHEMA, DOMAINS: DOMAINS, RETIRED_HABITS: RETIRED_HABITS, runBefore: runBefore, escalatedPay: escalatedPay, repairUsed: repairUsed, RULES_V2_SINCE: RULES_V2_SINCE, activeOn: activeOn, setArchived: setArchived, DEFAULT_SETTINGS: DEFAULT_SETTINGS, DEFAULT_HABITS: DEFAULT_HABITS, DEFAULT_ROUTINES: DEFAULT_ROUTINES,
+  SCHEMA: SCHEMA, DOMAINS: DOMAINS, RETIRED_HABITS: RETIRED_HABITS, runBefore: runBefore, escalatedPay: escalatedPay, repairUsed: repairUsed, repairActionsFor: repairActionsFor, RULES_V2_SINCE: RULES_V2_SINCE, activeOn: activeOn, setArchived: setArchived, DEFAULT_SETTINGS: DEFAULT_SETTINGS, DEFAULT_HABITS: DEFAULT_HABITS, DEFAULT_ROUTINES: DEFAULT_ROUTINES,
   newData: newData, normalize: normalize, derive: derive, snapshot: snapshot, checkIn: checkIn, repair: repair,
   removeEntry: removeEntry, pickTrait: pickTrait, fxAt: fxAt, importEntries: importEntries, mediaRequest: mediaRequest, buildSample: buildSample,
   stageList: stageList, thinTier: thinTier, habitMap: habitMap,

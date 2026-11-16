@@ -15,6 +15,14 @@ Newest entry first. Each session adds one entry: what changed, why, what is unte
 - Idea raised but not started: the `nutrition` module (calories and macros, same data file and points ledger).
 - A leftover `add-source` branch exists on GitHub; it can be deleted from pull request #1.
 
+## 2026-11-16: two more negative habits, per-habit recovery lists (v1.5)
+
+**Changed (engine):** new negatives **Solo time** (Health, 10) and **Late browsing** (Spiritual, 20), `single: true` (one event per log, can be logged again the same day). Both pay the +3 integrity reward and claw back within the shared caps (40 a day, 90 any 7 days; owner's choice). Recovery actions are now a pool in `settings.repair.actions` with a list per negative habit (`repairActions`): alcohol keeps its four; Solo time: walk, extra push-ups, cold shower, mindfulness, write down what led to it, journal, pray, extra Bible passage; Late browsing: the same plus phone outside the bedroom. Labels say "extra" where a daily habit exists, so a repair never pays as that habit. An action can seal one repair a day; `repair` refuses an action not on the habit's list. Migration to `meta.habitSet` 3 adds both habits dated 2026-11-16, gives alcohol its list and adds the new actions to an old file's pool.
+
+**Screens:** the negative pop-up opens for the tapped habit only (it used to open every negative in the cluster), hides the count stepper for single-event habits, and the wording no longer says "drinks" for them. The repair bay lists that habit's actions and greys out any already used today.
+
+**Tested:** 110 engine tests, 0 failed. Screenshots at 1440×900 and 390×844. **Untested:** iPhone. Walkthrough chapter 07 still only names alcohol (still true; optional re-record).
+
 ## 2026-11-16: re-recorded walkthrough chapters 02, 03, 04, 05, 07 (v1.4)
 
 **Changed:** new Muse recordings for the five chapters rewritten in v1.2 and v1.3 (`media/guide-0N.mp3`), and their `lines` and `at` times in `GUIDE_CHAPTERS`. Line starts were found by matching every sentence break to a pause in the audio (ffmpeg silencedetect, -38 dB, 0.25 s) with a pace-based estimate, and taking the end of the pause before each line. Note: the owner's first upload was the old files byte for byte; check new recordings differ from `media/` before using them.

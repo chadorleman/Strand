@@ -308,5 +308,35 @@ console.log('MIGRATION TO HABIT SET 2');
   ok(!E.normalize(arch).habits.find(h => h.id === 'midweek').archivedOn, 'a habit the owner had already archived stays archived for all time');
 }
 
+
+console.log('NEGATIVES: SOLO TIME / LATE BROWSING');
+{
+  const t = '2026-03-02';
+  const d = E.newData();
+  ['sleep', 'water', 'fasting', 'pushups', 'mindfulness', 'dailyText', 'bible', 'study', 'gym'].forEach(h => E.checkIn(d, h, t, { today: t, rng: never }));
+  const p0 = E.derive(d, t).points;
+  const a = E.checkIn(d, 'soloTime', t, { today: t, amount: 5, rng: never });
+  ok(a.entry.amount === 1 && a.entry.clawback.requested === 10, 'Solo time: one event per log, costs 10 (amount ignored)');
+  ok(d.ledger.some(r => r.logId === a.entry.id && r.source === 'integrity' && r.amount === 3 && r.protected), 'honest log pays +3, protected');
+  ok(E.derive(d, t).points === p0 + 3 - 10, 'net -7');
+  const b = E.checkIn(d, 'lateBrowsing', t, { today: t, rng: never });
+  ok(b.entry.clawback.requested === 20 && b.entry.clawback.taken === 20, 'Late browsing costs 20');
+  const c = E.checkIn(d, 'lateBrowsing', t, { today: t, rng: never });
+  ok(c.entry.clawback.taken === 10 && !c.error, 'logged again the same day; the shared 40-a-day cap holds it to 10');
+  ok(E.repairActionsFor(d, d.habits.find(h => h.id === 'lateBrowsing')).some(x => x.id === 'phoneOut') && !E.repairActionsFor(d, d.habits.find(h => h.id === 'soloTime')).some(x => x.id === 'hydrate'), 'each negative offers its own recovery list');
+  ok(E.repair(d, a.entry.id, 'hydrate', { today: t }).error, 'an action not on the list is refused');
+  const r1 = E.repair(d, b.entry.id, 'pray', { today: t });
+  ok(r1.events[0].points === 12, 'repair re-earns 60% (12 of 20)');
+  ok(E.repair(d, c.entry.id, 'pray', { today: t }).code === 'actionUsed' && !E.repair(d, c.entry.id, 'scripture', { today: t }).error, 'one action seals one repair a day; another action works');
+  ok(!E.derive(d, t).byDate[t].slots.some(x => x.t === 'pair' && (x.habitId === 'soloTime' || x.habitId === 'lateBrowsing')), 'negatives draw as damaged or repaired pairs, never as positive pairs');
+  // an old file gains both, dated today, with alcohol keeping its own list
+  const o = E.newData(); o.habits = o.habits.filter(h => !['soloTime', 'lateBrowsing'].includes(h.id)); delete o.habits.find(h => h.id === 'alcohol').repairActions;
+  o.settings.repair.actions = o.settings.repair.actions.slice(0, 4); o.meta.habitSet = 2;
+  const m = E.normalize(o);
+  ok(m.habits.find(h => h.id === 'soloTime').addedOn === '2026-11-16' && m.habits.find(h => h.id === 'lateBrowsing'), 'migration adds both, dated from the ship date');
+  ok(JSON.stringify(m.habits.find(h => h.id === 'alcohol').repairActions) === JSON.stringify(['hydrate', 'walk', 'reflect', 'still']) && m.settings.repair.actions.length === 10, 'alcohol keeps its four actions; the pool gains the new ones');
+  ok(E.checkIn(m, 'soloTime', '2026-11-10', { today: '2026-11-17' }).error, 'cannot be logged before it was added');
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
