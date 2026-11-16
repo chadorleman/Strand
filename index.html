@@ -120,8 +120,8 @@ h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;letter-spacing:.01e
 .shields .on path{fill:rgba(168,220,255,.25);stroke:var(--frost)}
 .shields .off path{fill:none;stroke:rgba(168,220,255,.25)}
 .nav{display:flex;gap:2px}
-.nav button{white-space:nowrap;padding:7px 8px;border-radius:99px;color:var(--dim);font:500 14px var(--display);letter-spacing:.02em}
-.nav button:hover{color:var(--ink);background:rgba(255,255,255,.07)}
+.nav button,.nav a{white-space:nowrap;padding:7px 8px;border-radius:99px;color:var(--dim);font:500 14px var(--display);letter-spacing:.02em;text-decoration:none}
+.nav button:hover,.nav a:hover{color:var(--ink);background:rgba(255,255,255,.07)}
 .nav button[aria-pressed="true"]{color:var(--aqua)}
 .nav button[aria-pressed="false"]{text-decoration:line-through;opacity:.7}
 .nav .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gold);margin-left:5px;vertical-align:2px;box-shadow:0 0 8px var(--gold)}
@@ -410,7 +410,7 @@ textarea{width:100%;min-height:150px;font-family:"Cascadia Mono",Consolas,monosp
 }
 @media (max-width:640px){
   .field{height:420px}.stagebox{min-width:0;width:100%}.tally{text-align:left}.splitrow{justify-content:flex-start}
-  .atom{width:84px}.nav button{padding:6px 8px}#mini{width:46vw}
+  .atom{width:84px}.nav button,.nav a{padding:6px 8px}#mini{width:46vw}
 }
 @media (max-width:640px){
   .nav{flex-wrap:wrap;max-width:100%}
@@ -464,6 +464,7 @@ textarea{width:100%;min-height:150px;font-family:"Cascadia Mono",Consolas,monosp
         <button data-open="ledger">Ledger</button>
         <button data-open="settings">Settings</button>
         <button data-open="data" id="navData">Data</button>
+        <a href="spending.html" id="navSpend" title="Your spending tracker">Spending</a>
         <button id="soundBtn" aria-pressed="true" title="Sound on or off">Sound</button>
       </nav>
     </header>
@@ -515,7 +516,7 @@ textarea{width:100%;min-height:150px;font-family:"Cascadia Mono",Consolas,monosp
 <input type="file" id="filePick" hidden>
 
 <script>
-window.STRAND_VERSION = {"version": "1.5", "major": 1, "build": 5, "date": "2026-11-16"};
+window.STRAND_VERSION = {"version": "1.6", "major": 1, "build": 6, "date": "2026-11-16"};
 </script>
 <script>
 /* ==========================================================================

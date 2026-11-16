@@ -9,11 +9,26 @@ Newest entry first. Each session adds one entry: what changed, why, what is unte
 - Phone strand view: the field is mostly empty space at 390 px; consider a lower default zoom on phones.
 - **Build weekly challenges and bonus drops** from the design in the 2026-11-15 entry below (engine work: Opus or Fable). Suggested split: session 1 drops, session 2 challenges and stakes.
 - Listen through walkthrough chapters 02, 03, 04, 05 and 07 once on the phone; if a caption changes early or late, adjust that line's `at` time in `GUIDE_CHAPTERS`.
+- **Next build (Session 2): Financial and Career habits** (engine: Opus). Owner-approved design:
+  - Financial habits are **checked in automatically** from `spending-data.json`, positives only, each keyed to its week or month so it pays once, and **dated the day Strand sees it** (a late import never reaches back into a bonded week). Weekly money review (every transaction in the week categorized), weight 10. Flexible spending on plan (week's flexible spend within ¼ of the monthly flexible plan), 15. Category on plan (a category chosen in Settings, e.g. dining, within its weekly share), 10. Giving at plan (month's giving reaches the budgeted amount; new monthly cadence), 15. Extra giving (each gift beyond the month's plan), 5 each.
+  - A **manual "other giving"** habit too (time, help, a cash gift), occasional, so it is never a miss.
+  - Career: "Focused career block", weekly, target 2, weight 15, manual.
+  - Strand reads `spending-data.json` with its own GitHub connection (read only; the blob API path for files over 1 MB is already in Strand's sync). Neither domain gates the molecule.
+  - On the strand: Financial and Career pairs drawn as full rungs across both strands in their own colours (`src/helix.js` sends everything not Health to the Spiritual side today).
+  - Walkthrough: new lines for these, recorded after the build.
+- **Owner (not code):** move the spending data: on the PC, Spending (old file) → Setup → Backup and export → Download backup; then on chadorleman.github.io/Strand/spending.html → Restore a backup. The restored file (with the owner's own rules) is saved to the private repo and older months are archived automatically.
+- Spending: the Year page cannot show archived years yet; Setup offers a download per archived year. Possible follow-up.
 - **Career and Financial on the strand:** the helix draws health on one strand and everything else on the other (`s.cat === 'health'` in `src/helix.js`), so Career and Financial base pairs would sit with Spiritual. Decide how they should look before adding the first habit in those domains.
 - The "Early prep" challenge in the 2026-11-15 spec now means both midweek steps.
 - No UI yet to add a habit; adding one means a code change with `addedOn`. Worth building once the domains fill up.
 - Idea raised but not started: the `nutrition` module (calories and macros, same data file and points ledger).
 - A leftover `add-source` branch exists on GitHub; it can be deleted from pull request #1.
+
+## 2026-11-16: Spending page inside Strand, synced and archived (v1.6, spending.html)
+
+**Changed:** the owner's spending tracker is now `spending.html` in this repo, linked as "Spending" from Strand's top bar, with "← Strand" back. It uses Strand's GitHub connection (same site, same browser storage) to save `spending-data.json` beside the Strand data file: each save a commit with a short message, a sha mismatch asks which version to keep, changes from another device are picked up when the page comes back to the front, a pending save is sent when it is hidden. Reads fall back to the blob API for files over 1 MB. Sample data is never pushed. **Archive:** the working file keeps the latest month with data plus the 12 before it; older transactions go to `spending-archive-<year>.json` (merged, deduplicated). Every archive file is written before anything leaves the working file; a failed write moves nothing. Runs after open, after imports and after each save; "Archive now" in Setup. Rows re-imported from an archived month are skipped. Setup → Backup and export shows the GitHub status, the archive (download per year) and the working file size. Starter rules in the published copy are generic (fees, interest, cash advance, card payments); the owner's personal rules were removed from it and come back with his restored backup. Sample places changed to an invented town.
+
+**Tested:** `test/spending_flow.py` 11 passed (sample never sent; restored backup saved; 1,410 rows → 705 kept + 705 archived to 2024 and 2025 files, nothing lost; token in no data file; re-import of an archived month skipped; over-1-MB file loads on a second device; both-changed conflict asks, keep-this-device saves). `test/gh_flow.py` unchanged results. Engine tests 110 passed. Screenshots at 1440×900 and 390×844. **Untested:** real GitHub (the PUT size limit for a working file near 1 MB was not tried against the live API; the archive keeps it well under); iPhone home-screen navigation between the two pages.
 
 ## 2026-11-16: two more negative habits, per-habit recovery lists (v1.5)
 
