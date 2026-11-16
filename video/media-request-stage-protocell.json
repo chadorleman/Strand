@@ -1,0 +1,988 @@
+{
+ "strandMediaRequest": 1,
+ "milestone": {
+  "id": "stage-protocell",
+  "kind": "stage",
+  "name": "Protocell",
+  "phase": "Cell",
+  "phaseChange": true,
+  "formula": null,
+  "note": null,
+  "reachedOn": "2026-11-10"
+ },
+ "deliver": {
+  "kind": "video",
+  "saveAs": "media/stage-protocell.mp4"
+ },
+ "sample": true,
+ "stats": {
+  "points": 1208,
+  "bonded": 875,
+  "chain": 4,
+  "bestChain": 15,
+  "shieldsLeft": 0,
+  "bondedThrough": "2026-11-01",
+  "days": 23,
+  "basePairs": 121,
+  "gaps": 1,
+  "shielded": 3,
+  "damaged": 1,
+  "repaired": 1,
+  "stableDays": 1,
+  "bondedWeeks": 2
+ },
+ "habits": {
+  "sleep": {
+   "sym": "Sl",
+   "name": "Sleep",
+   "category": "health",
+   "hue": 222,
+   "negative": false
+  },
+  "water": {
+   "sym": "Aq",
+   "name": "Water",
+   "category": "health",
+   "hue": 192,
+   "negative": false
+  },
+  "fasting": {
+   "sym": "Fa",
+   "name": "Fasting",
+   "category": "health",
+   "hue": 172,
+   "negative": false
+  },
+  "pushups": {
+   "sym": "Pu",
+   "name": "Push-ups",
+   "category": "health",
+   "hue": 152,
+   "negative": false
+  },
+  "gym": {
+   "sym": "Gy",
+   "name": "Gym",
+   "category": "health",
+   "hue": 136,
+   "negative": false
+  },
+  "mindfulness": {
+   "sym": "Mi",
+   "name": "Mindfulness",
+   "category": "health",
+   "hue": 204,
+   "negative": false
+  },
+  "vitamins": {
+   "sym": "Vi",
+   "name": "Vitamins",
+   "category": "health",
+   "hue": 162,
+   "negative": false
+  },
+  "alcohol": {
+   "sym": "Et",
+   "name": "Alcohol",
+   "category": "health",
+   "hue": 344,
+   "negative": true
+  },
+  "dailyText": {
+   "sym": "Dt",
+   "name": "Daily text",
+   "category": "spiritual",
+   "hue": 46,
+   "negative": false
+  },
+  "bible": {
+   "sym": "Br",
+   "name": "Bible reading",
+   "category": "spiritual",
+   "hue": 36,
+   "negative": false
+  },
+  "study": {
+   "sym": "Ps",
+   "name": "Personal study",
+   "category": "spiritual",
+   "hue": 24,
+   "negative": false
+  },
+  "midweek": {
+   "sym": "Mw",
+   "name": "Midweek prep",
+   "category": "spiritual",
+   "hue": 54,
+   "negative": false
+  },
+  "watchtower": {
+   "sym": "Wt",
+   "name": "Watchtower prep",
+   "category": "spiritual",
+   "hue": 14,
+   "negative": false
+  }
+ },
+ "routines": [
+  {
+   "id": "morning",
+   "name": "Morning stack",
+   "habits": [
+    "sleep",
+    "dailyText",
+    "vitamins",
+    "pushups"
+   ]
+  },
+  {
+   "id": "evening",
+   "name": "Evening stack",
+   "habits": [
+    "bible",
+    "mindfulness",
+    "fasting",
+    "water"
+   ]
+  }
+ ],
+ "strand": [
+  {
+   "date": "2026-10-19",
+   "state": "active",
+   "stable": false,
+   "bonds": [
+    "evening"
+   ],
+   "weekStart": "2026-10-19",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "pushups",
+     "cat": "health",
+     "bonus": "rare"
+    },
+    {
+     "t": "pair",
+     "habitId": "water",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-20",
+   "state": "active",
+   "stable": false,
+   "bonds": [
+    "evening"
+   ],
+   "weekStart": "2026-10-19",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "dailyText",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "water",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "gym",
+     "cat": "health",
+     "bonus": "crit"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-21",
+   "state": "active",
+   "stable": false,
+   "bonds": [
+    "morning"
+   ],
+   "weekStart": "2026-10-19",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "sleep",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "dailyText",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "pushups",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "water",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health",
+     "bonus": "chest"
+    },
+    {
+     "t": "pair",
+     "habitId": "midweek",
+     "cat": "spiritual"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-22",
+   "state": "active",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-10-19",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "sleep",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "dailyText",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-23",
+   "state": "active",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-10-19",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "sleep",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "dailyText",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "pushups",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "gym",
+     "cat": "health"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-24",
+   "state": "active",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-10-19",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "sleep",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "dailyText",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "water",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "study",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "watchtower",
+     "cat": "spiritual"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-25",
+   "state": "active",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-10-19",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "dailyText",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "pushups",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-26",
+   "state": "active",
+   "stable": false,
+   "bonds": [
+    "evening"
+   ],
+   "weekStart": "2026-10-26",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "dailyText",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "water",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-27",
+   "state": "shielded",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-10-26",
+   "slots": []
+  },
+  {
+   "date": "2026-10-28",
+   "state": "active",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-10-26",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "dailyText",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual",
+     "bonus": "chest"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "midweek",
+     "cat": "spiritual"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-29",
+   "state": "active",
+   "stable": false,
+   "bonds": [
+    "evening"
+   ],
+   "weekStart": "2026-10-26",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "dailyText",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "water",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    },
+    {
+     "t": "repaired",
+     "habitId": "alcohol",
+     "cat": "health"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-30",
+   "state": "active",
+   "stable": true,
+   "bonds": [
+    "morning",
+    "evening"
+   ],
+   "weekStart": "2026-10-26",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "sleep",
+     "cat": "health",
+     "bonus": "crit"
+    },
+    {
+     "t": "pair",
+     "habitId": "dailyText",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "pushups",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "water",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health",
+     "bonus": "crit"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "gym",
+     "cat": "health"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-31",
+   "state": "active",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-10-26",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "sleep",
+     "cat": "health",
+     "bonus": "chest"
+    },
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "study",
+     "cat": "spiritual",
+     "bonus": "crit"
+    },
+    {
+     "t": "pair",
+     "habitId": "watchtower",
+     "cat": "spiritual"
+    }
+   ]
+  },
+  {
+   "date": "2026-11-01",
+   "state": "active",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-10-26",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "sleep",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "pushups",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "water",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual",
+     "bonus": "chest"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    }
+   ]
+  },
+  {
+   "date": "2026-11-02",
+   "state": "active",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-11-02",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "sleep",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "dailyText",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "water",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    }
+   ]
+  },
+  {
+   "date": "2026-11-03",
+   "state": "active",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-11-02",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "pushups",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health",
+     "bonus": "crit"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "gym",
+     "cat": "health"
+    }
+   ]
+  },
+  {
+   "date": "2026-11-04",
+   "state": "shielded",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-11-02",
+   "slots": []
+  },
+  {
+   "date": "2026-11-05",
+   "state": "shielded",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-11-02",
+   "slots": []
+  },
+  {
+   "date": "2026-11-06",
+   "state": "gap",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-11-02",
+   "slots": []
+  },
+  {
+   "date": "2026-11-07",
+   "state": "active",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-11-02",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "sleep",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "pushups",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "water",
+     "cat": "health",
+     "bonus": "chest"
+    },
+    {
+     "t": "pair",
+     "habitId": "fasting",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "study",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "watchtower",
+     "cat": "spiritual"
+    }
+   ]
+  },
+  {
+   "date": "2026-11-08",
+   "state": "active",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-11-02",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "sleep",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "pushups",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "water",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health",
+     "bonus": "rare"
+    }
+   ]
+  },
+  {
+   "date": "2026-11-09",
+   "state": "active",
+   "stable": false,
+   "bonds": [
+    "morning"
+   ],
+   "weekStart": "2026-11-09",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "sleep",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "dailyText",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "pushups",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "water",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "bible",
+     "cat": "spiritual"
+    },
+    {
+     "t": "pair",
+     "habitId": "mindfulness",
+     "cat": "health"
+    },
+    {
+     "t": "damaged",
+     "habitId": "alcohol",
+     "cat": "health"
+    }
+   ]
+  },
+  {
+   "date": "2026-11-10",
+   "state": "active",
+   "stable": false,
+   "bonds": [],
+   "weekStart": "2026-11-09",
+   "slots": [
+    {
+     "t": "pair",
+     "habitId": "sleep",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "dailyText",
+     "cat": "spiritual",
+     "bonus": "crit"
+    },
+    {
+     "t": "pair",
+     "habitId": "vitamins",
+     "cat": "health"
+    },
+    {
+     "t": "pair",
+     "habitId": "water",
+     "cat": "health",
+     "bonus": "crit"
+    }
+   ]
+  }
+ ]
+}

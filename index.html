@@ -408,6 +408,19 @@ textarea{width:100%;min-height:150px;font-family:"Cascadia Mono",Consolas,monosp
   .field{height:420px}.stagebox{min-width:0;width:100%}.tally{text-align:left}.splitrow{justify-content:flex-start}
   .atom{width:84px}.nav button{padding:6px 8px}#mini{width:46vw}
 }
+@media (max-width:640px){
+  .nav{flex-wrap:wrap;max-width:100%}
+  .samplebar{flex-wrap:wrap;justify-content:flex-start;gap:8px 10px;padding:8px 16px}
+  .samplebar span{flex-basis:100%}
+  .field{height:340px}
+  #drawer{width:100vw;left:0}
+  #drawer header,#drawer .body{padding-left:16px;padding-right:16px}
+  .grid2,.grid2.ghf{grid-template-columns:minmax(0,1fr);max-width:none}
+  .grid2 input{width:100%}
+  #drawer .body{overflow-x:hidden}
+  #drawer pre,#drawer table{max-width:100%}
+  #drawer table{display:block;overflow-x:auto}
+}
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
@@ -1945,7 +1958,7 @@ function syncStatus() {
     else if (GH.state === 'pending' || GH.state === 'saving') { col = 'var(--aqua)'; tip = 'Saving to GitHub'; }
   } else if (st.dirState !== 'linked' || st.writeError) { col = 'var(--amber)'; tip = 'Only saved in this browser'; }
   b.innerHTML = 'Data' + (col ? '<span class="dot" style="background:' + col + ';box-shadow:0 0 8px ' + col + '" title="' + tip + '"></span>' : '');
-  if (st.drawer === 'data' && !document.activeElement.closest('#ghForm')) { var box = $('#ghStatus'); if (box) box.outerHTML = ghStatusHtml(); }
+  if (st.drawer === 'data' && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('#ghForm'))) { var box = $('#ghStatus'); if (box) box.outerHTML = ghStatusHtml(); }
 }
 function ghStatusHtml() {
   var c = GH.cfg, where = c ? esc(c.owner + '/' + c.repo + '/' + c.path) : '', cls = 'status', msg;
@@ -2324,7 +2337,7 @@ function ghHtml() {
 }
 function dataHtml() {
   var h = ghHtml(), cls = 'status', msg, btn = '';
-  if (!Store.canLink) { msg = 'This browser cannot write a data file directly, so your data is kept in this browser. Use Chrome or Edge to link a file, and export backups in the meantime.'; }
+  if (!Store.canLink) { if (GH.on()) cls += ' ok'; msg = GH.on() ? '<b>Not needed here.</b> This browser cannot link a folder, but GitHub sync above already saves everything.' : '<b>This browser cannot link a folder</b> (Safari and phones cannot). Use <b>Sync to GitHub</b> above instead. It works in every browser, iPhone included.'; }
   else if (st.dirState === 'none' && GH.on()) { cls += ' ok'; msg = '<b>Optional.</b> GitHub sync already saves everything. Link a folder too if you want a copy on this computer.'; btn = '<button class="btn" data-act="link">Link my Strand folder</button>'; }
   else if (st.dirState === 'none') { msg = '<b>Not linked to a data file yet.</b> Everything is saved in this browser only. Link the folder where Strand lives and it writes <code>' + DATA_FILE + '</code> there after every change.'; btn = '<button class="btn go" data-act="link">Link my Strand folder</button>'; }
   else if (st.dirState === 'paused') { msg = '<b>Linked to "' + esc(st.dirName) + '", waiting for permission.</b> The browser asks once per visit.'; btn = '<button class="btn go" data-act="reconnect">Reconnect</button><button class="btn" data-act="unlink">Unlink</button>'; }
