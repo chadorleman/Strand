@@ -8,11 +8,22 @@ Newest entry first. Each session adds one entry: what changed, why, what is unte
 - Listen through the walkthrough once on the phone; if a caption changes early or late, adjust that line's `at` time in `GUIDE_CHAPTERS`.
 - Phone strand view: the field is mostly empty space at 390 px; consider a lower default zoom on phones.
 - **Build weekly challenges and bonus drops** from the design in the 2026-11-15 entry below (engine work: Opus or Fable). Suggested split: session 1 drops, session 2 challenges and stakes.
-- **Next build: new habits** from the 2026-11-16 design (engine: Opus or Fable). Whole-day fast: Health, a new `occasional` cadence (never in a daily total, never "missed"), base 25, each consecutive fast day pays 120% of the day before (25, 30, 36, 43…), **exempt from thinning** (owner approved). Walk: Health daily, weight 5, one walk a day counts as the habit or the alcohol repair, never both. Split Midweek and Watchtower prep into two steps (7 + 8); old 15-point entries count as both steps; archive the old habits with `archivedOn`. New habits in an existing file need a migration that adds them with `addedOn` = ship date (`mergeMissing` does not add array items).
-- **Walkthrough re-recording:** chapters 04 and 05 of `video/guide-script.md` are rewritten for the new molecule and solid-day rules. Chapters 02, 03 and 07 will change with the new habits; record them all together after that build, then update lines and `at` times in `GUIDE_CHAPTERS`. Until then the old audio and captions describe the old rules.
+- **Walkthrough re-recording (owner):** chapters 02, 03, 04, 05 and 07 of `video/guide-script.md` are rewritten. Record all five, then update their lines and `at` times in `GUIDE_CHAPTERS` (`src/app.js`). Until then the old audio and captions describe the old rules.
+- **Career and Financial on the strand:** the helix draws health on one strand and everything else on the other (`s.cat === 'health'` in `src/helix.js`), so Career and Financial base pairs would sit with Spiritual. Decide how they should look before adding the first habit in those domains.
+- The "Early prep" challenge in the 2026-11-15 spec now means both midweek steps.
 - No UI yet to add a habit; adding one means a code change with `addedOn`. Worth building once the domains fill up.
 - Idea raised but not started: the `nutrition` module (calories and macros, same data file and points ledger).
 - A leftover `add-source` branch exists on GitHub; it can be deleted from pull request #1.
+
+## 2026-11-16: whole-day fast, walk, two-step prep (v1.3)
+
+**Changed (engine):** new `occasional` cadence for the **whole-day fast** (Health, weight 25): never in a daily total or the molecule, never a miss; pay is 25 × 1.2^(days in a row before it), so 25, 30, 36, 43, 52…, with no thinning (bonus odds at the base 10%). A break resets to 25. Each entry records `runDay`. It counts toward a solid day (25 of 62 weight is one on its own). **Walk** (Health daily, 5) carries `repairAction: 'walk'`: on a given day it pays as the habit or seals an alcohol repair with the walk action, never both (`checkIn` and `repair` each refuse the second). **Prep steps:** `midweek1` 7, `midweek2` 8, `watchtower1` 7, `watchtower2` 8, weekly, once each; `stepOf` lets the old single habit's entries count toward each step's streak, so thinning tiers carry on. `checkIn` now refuses a habit on a day it was not active.
+
+**Migration (`meta.habitSet` 2):** an old file gains the six habits with `addedOn` 2026-11-16 and the single-step prep habits are archived with `archivedOn` 2026-11-16 (one already archived by the owner stays archived for all time). Every past day reads exactly as before (tested). New files track all habits from day one; Health daily weight is now 49 (70% = 34.3) and the day total 62.
+
+**Screens:** fast tile shows the next day's pay and "day N" in a run; walk tile says "sealed a repair today" when used; the walk repair chip is disabled once the walk habit is in for the day. Settings: the fast growth rate. Walkthrough chapters 02, 03 and 07 rewritten (with 04 and 05 from the last entry).
+
+**Tested:** 97 engine tests, 0 failed. Screenshots at 1440×900 and 390×844. **Untested:** the real file's migration through GitHub sync; iPhone. On the phone, Health now wraps to a second row of atoms.
 
 ## 2026-11-16: domains, weight-based molecules, dated rules (v1.2)
 

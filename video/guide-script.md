@@ -27,7 +27,7 @@ It lights up, you hear a tone, the points float up, and a new base pair flies on
 Health atoms sit on one side of the helix, and spiritual atoms on the other.
 Tapped the wrong one? Tap it again. The label changes to "tap again to undo," and a second tap removes it.
 Forgot a day? Use the arrows beside the date to step back. You can check in up to 7 days back.
-Weekly habits show a ring that fills toward the week's target. The gym aims for 2 a week, and extra sessions still pay.
+Weekly habits show a ring that fills toward the week's target. The gym aims for 2 a week, and extra sessions still pay. Meeting prep comes in two steps, and each step is its own atom.
 A full day of check-ins takes well under a minute.
 
 ## guide-03.mp3: Points and bonuses
@@ -37,7 +37,7 @@ Now and then, a check-in pays a surprise bonus on top.
 A crit adds the habit's weight again. A vesicle adds twice its weight. A rare isotope adds 4 times its weight.
 You can't predict which tap will pay. That is on purpose.
 As a habit's streak grows, its base pay thins, down to 60 percent after 45 days in a row.
-At the same time its bonus odds rise, from 10 percent to 30 percent. A long streak trades steady pay for bigger surprises.
+At the same time its bonus odds rise, from 10 percent to 30 percent. A long streak trades steady pay for bigger surprises. The whole-day fast works the other way. It pays 25 points, and each day in a row pays 20 percent more than the day before.
 
 ## guide-04.mp3: Bonds and stable molecules
 
@@ -76,7 +76,7 @@ The drinks do cost. Each one claws back up to 12 points, taken from your newest 
 There are caps. No single day can lose more than 40 points, and no seven days in a row more than 90.
 On the strand, that base pair shows as damaged, with a break in the backbone.
 Then the repair bay opens. It follows how a cell repairs its DNA: recognize the damage, cut it out and fill it, then seal it.
-Recognizing is already done, because you logged it. Pick one recovery action, do it, and seal the repair.
+Recognizing is already done, because you logged it. Pick one recovery action, do it, and seal the repair. A walk counts once: as your walk habit or as the repair, not both.
 That earns back 60 percent of what was clawed, and the pair is marked repaired for good, with a gold seam.
 The repair stays open until the end of the day you logged it.
 

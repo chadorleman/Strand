@@ -117,15 +117,15 @@ console.log('BONUS / THINNING / UNDO');
 console.log('BONDS / MOLECULE');
 {
   const d = E.newData(); const t = '2026-03-02'; let ev = [];
-  ['sleep', 'dailyText', 'vitamins', 'pushups', 'bible', 'mindfulness', 'fasting', 'water'].forEach(h => { ev = ev.concat(E.checkIn(d, h, t, { today: t, rng: never }).events); });
+  ['sleep', 'dailyText', 'vitamins', 'pushups', 'bible', 'mindfulness', 'fasting', 'water', 'walk'].forEach(h => { ev = ev.concat(E.checkIn(d, h, t, { today: t, rng: never }).events); });
   ok(ev.filter(e => e.type === 'bond').length === 2, 'two routines bonded');
   ok(ev.filter(e => e.type === 'molecule').length === 1 && E.derive(d, t).byDate[t].stable, 'full day formed a stable molecule');
-  ok(E.derive(d, t).points === 57 + 10 + 15, 'points: 57 base + 2 bonds + molecule = 82');
+  ok(E.derive(d, t).points === 62 + 10 + 15, 'points: 62 base + 2 bonds + molecule = 87');
   const sleepId = d.log.find(e => e.habitId === 'sleep').id; E.removeEntry(d, sleepId, t);
-  ok(E.derive(d, t).points === 82 - 10 - 5 && E.derive(d, t).byDate[t].stable, 'undoing sleep removes its bond; Health still at 34 of 44 (70%), so the molecule stays');
+  ok(E.derive(d, t).points === 87 - 10 - 5 && E.derive(d, t).byDate[t].stable, 'undoing sleep removes its bond; Health still at 39 of 49 (70% = 34.3), so the molecule stays');
   ok(d.ledger.filter(r => r.source === 'molecule').every(r => d.log.some(e => e.id === r.logId)), 'a kept molecule row points at an entry still in the log');
   const fastId = d.log.find(e => e.habitId === 'fasting').id; E.removeEntry(d, fastId, t);
-  ok(E.derive(d, t).points === 82 - 10 - 5 - 10 - 5 - 15 && !E.derive(d, t).byDate[t].stable, 'undoing fasting too drops Health to 24 of 44: bond and molecule go');
+  ok(E.derive(d, t).points === 87 - 10 - 5 - 10 - 5 - 15 && !E.derive(d, t).byDate[t].stable, 'undoing fasting too drops Health to 29 of 49: bond and molecule go');
 }
 
 console.log('IMPORT ENTRIES');
@@ -190,13 +190,13 @@ console.log('GENES');
 
 console.log('DOMAINS / DATED RULES');
 {
-  const t = '2026-03-02', all = ['sleep', 'dailyText', 'vitamins', 'pushups', 'bible', 'mindfulness', 'fasting', 'water'];
-  // molecule uses set weight, not paid points: skip sleep + fasting (the heavy two) -> Health 24 of 44 fails
+  const t = '2026-03-02', all = ['sleep', 'dailyText', 'vitamins', 'pushups', 'bible', 'mindfulness', 'fasting', 'water', 'walk'];
+  // molecule uses set weight, not paid points: skip sleep + fasting (the heavy two) -> Health 29 of 49 fails
   const a = E.newData();
-  ['dailyText', 'bible', 'vitamins', 'pushups', 'mindfulness', 'water'].forEach(h => E.checkIn(a, h, t, { today: t, rng: never }));
-  ok(!E.derive(a, t).byDate[t].stable, 'four light Health habits (24 of 44) do not make a molecule');
+  ['dailyText', 'bible', 'vitamins', 'pushups', 'mindfulness', 'water', 'walk'].forEach(h => E.checkIn(a, h, t, { today: t, rng: never }));
+  ok(!E.derive(a, t).byDate[t].stable, 'five light Health habits (29 of 49) do not make a molecule');
   E.checkIn(a, 'sleep', t, { today: t, rng: never });
-  ok(E.derive(a, t).byDate[t].stable && a.ledger.some(r => r.source === 'molecule'), 'adding sleep (34 of 44) does, and pays the molecule');
+  ok(E.derive(a, t).byDate[t].stable && a.ledger.some(r => r.source === 'molecule'), 'adding sleep (39 of 49) does, and pays the molecule');
   // thinning lowers pay but not the molecule test
   const b = E.newData();
   for (let i = 0; i < 30; i++) { const dt = U.addDays(t, i); all.forEach(h => E.checkIn(b, h, dt, { today: dt, rng: never })); }
@@ -211,9 +211,9 @@ console.log('DOMAINS / DATED RULES');
   const w = E.newData();
   ['gym', 'study'].forEach(h => E.checkIn(w, h, t, { today: t, rng: never }));
   const wd = E.derive(w, t).byDate[t];
-  ok(wd.solid && !wd.stable, 'gym + personal study (40 weight vs 40% of 57) make a solid day but no molecule');
+  ok(wd.solid && !wd.stable, 'gym + personal study (40 weight vs 40% of 62) make a solid day but no molecule');
   const v = E.newData(); ['water', 'vitamins', 'dailyText', 'pushups'].forEach(h => E.checkIn(v, h, t, { today: t, rng: never }));
-  ok(!E.derive(v, t).byDate[t].solid, 'four light check-ins (21 of 57) are not a solid day under the weight rule');
+  ok(!E.derive(v, t).byDate[t].solid, 'four light check-ins (21 of 62) are not a solid day under the weight rule');
   // adding a daily habit later leaves past days as they were
   const p = E.newData();
   all.forEach(h => E.checkIn(p, h, t, { today: t, rng: never }));
@@ -222,7 +222,7 @@ console.log('DOMAINS / DATED RULES');
   ok(!E.derive(p, U.addDays(t, 6)).streaks.walk2.n, 'its streak starts at zero');
   // archiving keeps the past
   const q = E.newData();
-  ['dailyText', 'bible', 'sleep', 'water', 'fasting', 'pushups'].forEach(h => E.checkIn(q, h, t, { today: t, rng: never }));
+  ['dailyText', 'bible', 'sleep', 'water', 'fasting', 'pushups', 'mindfulness'].forEach(h => E.checkIn(q, h, t, { today: t, rng: never }));
   const before = E.derive(q, t).byDate[t].stable;
   E.setArchived(q.habits.find(h => h.id === 'sleep'), true, U.addDays(t, 3));
   ok(E.derive(q, U.addDays(t, 4)).byDate[t].stable === before && before, 'archiving a habit later leaves past days unchanged');
@@ -244,6 +244,68 @@ console.log('DOMAINS / DATED RULES');
   ['water', 'vitamins', 'dailyText', 'pushups'].forEach(h => E.checkIn(vn, h, pre, { today: pre, rng: never }));
   ok(E.derive(vn, pre).byDate[pre].solid, 'before the ship date, 4 check-ins still make a solid day');
   ok(JSON.stringify(E.normalize(JSON.parse(JSON.stringify(mig)))) === JSON.stringify(mig), 'normalizing a migrated file again changes nothing');
+}
+
+
+console.log('NEW HABITS: FAST / WALK / PREP STEPS');
+{
+  const t = '2026-03-02';
+  // whole-day fast: 120% of the day before, no thinning, never in the daily total
+  const f = E.newData(); const pays = [];
+  for (let i = 0; i < 4; i++) { const dt = U.addDays(t, i); pays.push(E.checkIn(f, 'wholeFast', dt, { today: dt, rng: never }).entry.points); }
+  ok(JSON.stringify(pays) === JSON.stringify([25, 30, 36, 43]), 'fast pays 25, 30, 36, 43 on consecutive days (' + pays.join(', ') + ')');
+  ok(f.log[3].runDay === 4, 'entry records which day of the run it was');
+  E.checkIn(f, 'wholeFast', U.addDays(t, 6), { today: U.addDays(t, 6), rng: never });
+  ok(f.log[4].points === 25, 'a break resets the run to the base');
+  const fd = E.derive(f, U.addDays(t, 6));
+  ok(!fd.days.some(d => d.molecule.domains.health && d.molecule.domains.health.total !== 49), 'the fast never adds to Health daily weight');
+  const g = E.newData();
+  ['sleep', 'fasting', 'pushups', 'mindfulness', 'dailyText', 'bible'].forEach(h => E.checkIn(g, h, t, { today: t, rng: never }));
+  const without = E.derive(g, t).byDate[t].stable;
+  E.checkIn(g, 'wholeFast', t, { today: t, rng: never });
+  ok(without && E.derive(g, t).byDate[t].stable, 'the fast never blocks a molecule');
+  const sd = E.newData(); E.checkIn(sd, 'wholeFast', t, { today: t, rng: never });
+  ok(E.derive(sd, t).byDate[t].solid, 'a fast day (25 of 62 weight) is a solid day on its own');
+  // walk: habit or repair, never both
+  const w = E.newData();
+  E.checkIn(w, 'walk', t, { today: t, rng: never });
+  const neg = E.checkIn(w, 'alcohol', t, { today: t, amount: 1, rng: never });
+  ok(E.repair(w, neg.entry.id, 'walk', { today: t }).code === 'habitUsed', 'a walk already checked in cannot seal a repair');
+  ok(!E.repair(w, neg.entry.id, 'hydrate', { today: t }).error, 'another action still can');
+  const w2 = E.newData(); E.checkIn(w2, 'sleep', t, { today: t, rng: never });
+  const n2 = E.checkIn(w2, 'alcohol', t, { today: t, amount: 1, rng: never }); E.repair(w2, n2.entry.id, 'walk', { today: t });
+  ok(E.checkIn(w2, 'walk', t, { today: t, rng: never }).code === 'repairUsed', 'a walk that sealed a repair cannot also pay as the habit');
+  ok(!E.checkIn(w2, 'walk', U.addDays(t, 1), { today: U.addDays(t, 1), rng: never }).error, 'the next day\'s walk is free');
+  // prep steps
+  const p = E.newData(); const ws = t;
+  ok(E.checkIn(p, 'midweek1', ws, { today: ws, rng: never }).entry.points === 7 && E.checkIn(p, 'midweek2', ws, { today: ws, rng: never }).entry.points === 8, 'prep steps pay 7 and 8');
+  ok(E.checkIn(p, 'midweek1', U.addDays(ws, 2), { today: U.addDays(ws, 2), rng: never }).code === 'duplicate', 'each step once a week');
+}
+
+console.log('MIGRATION TO HABIT SET 2');
+{
+  // an old file: single-step prep habits, no walk or fast, logged before the ship date
+  const old = E.newData();
+  old.habits = old.habits.filter(h => !['walk', 'wholeFast', 'midweek1', 'midweek2', 'watchtower1', 'watchtower2'].includes(h.id));
+  E.RETIRED_HABITS.forEach(h => { const c = JSON.parse(JSON.stringify(h)); delete c.archived; delete c.archivedOn; old.habits.push(c); });
+  delete old.meta.habitSet; delete old.settings.rulesSince;
+  const w1 = '2026-10-26', w2 = '2026-11-02', w3 = '2026-11-09';     // Mondays
+  [w1, w2, w3].forEach(d => { E.checkIn(old, 'midweek', U.addDays(d, 1), { today: U.addDays(d, 1), rng: never }); E.checkIn(old, 'watchtower', U.addDays(d, 5), { today: U.addDays(d, 5), rng: never }); });
+  ['sleep', 'water', 'fasting', 'pushups', 'mindfulness', 'vitamins', 'dailyText', 'bible'].forEach(h => E.checkIn(old, h, '2026-11-10', { today: '2026-11-10', rng: never }));
+  const before = E.derive(E.normalize(JSON.parse(JSON.stringify(old))), '2026-11-15');
+  const m = E.normalize(JSON.parse(JSON.stringify(old)));
+  const ids = m.habits.map(h => h.id);
+  ok(['walk', 'wholeFast', 'midweek1', 'midweek2', 'watchtower1', 'watchtower2'].every(id => ids.includes(id)), 'new habits added to an old file');
+  ok(m.habits.find(h => h.id === 'walk').addedOn === '2026-11-16' && m.habits.find(h => h.id === 'midweek').archivedOn === '2026-11-16', 'added and retired on the ship date');
+  const after = E.derive(m, '2026-11-15');
+  ok(JSON.stringify(after.days.map(d => [d.date, d.stable, d.solid])) === JSON.stringify(before.days.map(d => [d.date, d.stable, d.solid])) && after.byDate['2026-11-10'].stable, 'every past day reads exactly as before');
+  const today = '2026-11-18';
+  ok(E.derive(m, today).streaks.midweek1.n === 3 && E.derive(m, today).streaks.watchtower2.n === 3, 'old single-step weeks count for both new steps (3-week streaks carry on)');
+  ok(E.checkIn(m, 'midweek', today, { today: today, rng: never }).error && !E.checkIn(m, 'midweek1', today, { today: today, rng: never }).error, 'the retired habit is closed, the step is open');
+  ok(E.checkIn(m, 'walk', '2026-11-12', { today: today, rng: never }).error, 'the walk cannot be backfilled before it was added');
+  ok(JSON.stringify(E.normalize(JSON.parse(JSON.stringify(m)))) === JSON.stringify(m), 'normalizing again changes nothing');
+  const arch = E.newData(); arch.habits.push(Object.assign({}, E.RETIRED_HABITS[0], { archived: true })); delete arch.habits[arch.habits.length - 1].archivedOn; delete arch.meta.habitSet;
+  ok(!E.normalize(arch).habits.find(h => h.id === 'midweek').archivedOn, 'a habit the owner had already archived stays archived for all time');
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

@@ -472,9 +472,15 @@ function tile(h, day) {
     var locked = !done && cnt >= tg && !h.beyondTarget;
     if (locked) cls += ' locked done';
     sub = done ? '<i>+' + entry.points + '</i>' + cnt + ' of ' + tg + ' this week' : locked ? 'done this week' : '<i>+' + pay + '</i>' + cnt + ' of ' + tg + ' this week';
+  } else if (h.cadence === 'occasional') {
+    var run = E.runBefore(st.data, h.id, st.sel);
+    sub = done ? '<i>+' + entry.points + '</i>' + (entry.runDay > 1 ? '<span title="Consecutive days">day ' + entry.runDay + '</span>' : '') :
+      '<i>+' + E.escalatedPay(S(), h, run) + '</i>' + (run ? '<span title="Each day in a row pays ' + Math.round(S().streakGrowth * 100) + '% of the day before">day ' + (run + 1) + '</span>' : 'when it happens');
   } else {
-    sub = done ? '<i>+' + entry.points + '</i>' : '<i>+' + pay + '</i>';
-    if (sk.n >= 2) sub += '<span title="Current run">' + sk.n + 'd run</span>';
+    var usedUp = !done && h.repairAction && E.repairUsed(st.data, h.repairAction, st.sel);
+    if (usedUp) cls += ' locked';
+    sub = usedUp ? 'sealed a repair today' : done ? '<i>+' + entry.points + '</i>' : '<i>+' + pay + '</i>';
+    if (sk.n >= 2 && !usedUp) sub += '<span title="Current run">' + sk.n + 'd run</span>';
   }
   if (done) { cls += ' done'; if (entry.bonus) sub += '<span style="color:var(--gold)">+' + entry.bonus.points + ' ' + esc(entry.bonus.name.toLowerCase()) + '</span>'; }
   if (st.undoArm === h.id) { cls += ' arm'; }
@@ -499,6 +505,7 @@ function renderDeck() {
     h += '<section class="cluster" data-cat="' + cat + '"><h3>' + esc(dom ? dom.name : cat) + '<span>' + sub + '</span></h3><div class="atoms">';
     hs.filter(function (x) { return x.kind === 'positive' && x.cadence === 'daily'; }).forEach(function (x) { h += tile(x, day); });
     hs.filter(function (x) { return x.kind === 'positive' && x.cadence === 'weekly'; }).forEach(function (x) { h += tile(x, day); });
+    hs.filter(function (x) { return x.kind === 'positive' && x.cadence === 'occasional'; }).forEach(function (x) { h += tile(x, day); });
     hs.filter(function (x) { return x.kind === 'negative'; }).forEach(function (x) { h += tile(x, day); });
     h += '</div>';
     if (st.negOpen && ed) hs.filter(function (x) { return x.kind === 'negative'; }).forEach(function (x) {
@@ -554,7 +561,7 @@ function renderSide() {
       h += '<div class="card repair" id="repairBay"><h3>Repair bay<span>' + what + '</span></h3><p><b>−' + cb.taken + '</b> clawed from loose points. Repair it today and <b>+' + re + '</b> comes straight back.</p><ol>' +
         '<li class="ok"><div><b>Recognize</b>Done. You logged it, which is how a cell finds the lesion.</div></li>' +
         '<li class="' + (pick ? 'ok' : '') + '"><div><b>Excise and fill</b>Do one recovery action now.<div class="chips">' +
-        S().repair.actions.map(function (a) { return '<button data-act="pickRepair" data-log="' + e.id + '" data-a="' + esc(a.id) + '" aria-pressed="' + (pick === a.id) + '">' + esc(a.label) + '</button>'; }).join('') + '</div></div></li>' +
+        S().repair.actions.map(function (a) { var twin = st.data.habits.find(function (hb) { return hb.repairAction === a.id && day && day.done[hb.id]; }); return '<button data-act="pickRepair" data-log="' + e.id + '" data-a="' + esc(a.id) + '" aria-pressed="' + (pick === a.id) + '"' + (twin ? ' disabled title="Already checked in as a habit today. One walk counts once."' : '') + '>' + esc(a.label) + '</button>'; }).join('') + '</div></div></li>' +
         '<li><div><b>Ligate</b>Seal the backbone. The pair is marked repaired.<div class="chips"><button class="btn gold sm" data-act="seal" data-log="' + e.id + '" ' + (pick ? '' : 'disabled') + '>I did it. Seal the repair</button></div></div></li></ol></div>';
     } else {
       h += '<div class="card repair"><h3>Damaged pair<span>' + what + '</span></h3><p><b>−' + cb.taken + '</b> clawed. The repair window closed at the end of the day it was logged, so this pair stays damaged. Nothing else is lost.</p></div>';
@@ -785,6 +792,7 @@ var NUMS = [
   ['molecule.spiritual', 'Spiritual share for a stable molecule', '0.7 means 70% of the day\'s Spiritual daily weight'],
   ['clawback.dayCap', 'Clawback cap, one day', ''], ['clawback.weekCap', 'Clawback cap, any 7 days', ''],
   ['repair.rate', 'Repair re-earn rate', '0.6 means 60% comes back'],
+  ['streakGrowth', 'Whole-day fast: each day in a row pays this times the day before', '1.2 means 120%. No thinning'],
   ['shields.starting', 'Shields to start with', ''], ['shields.max', 'Most shields you can hold', ''],
   ['stableWeek.solidDayWeightPct', 'Share of the day\'s weight that makes a solid day', 'Every positive check-in counts, weekly and extra-points habits too'], ['stableWeek.minSolidDays', 'Solid days that make a stable week', 'A stable week bonds gains and earns a shield'],
   ['activeDay.minCheckins', 'Check-ins that keep the chain', 'Fewer than this is a missed day'],

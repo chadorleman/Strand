@@ -25,6 +25,10 @@ var DEFAULT_SETTINGS = {
 
   activeDay: { minCheckins: 1 },      // fewer positives than this = a missed day (a gap)
 
+  // Occasional habits (the whole-day fast): never in a daily total, never "missed".
+  // Each consecutive day pays this many times the day before. No thinning.
+  streakGrowth: 1.20,
+
   // Stable molecule: each listed domain must reach this share of the set weight of its
   // daily habits active that day. Domains not listed (career, financial) never gate it.
   molecule: { health: 0.70, spiritual: 0.70 },
@@ -137,13 +141,23 @@ var DEFAULT_HABITS = [
   { id: 'gym',         name: 'Gym session',                       short: 'Gym',         sym: 'Gy', category: 'health',    kind: 'positive', cadence: 'weekly', weeklyTarget: 2, beyondTarget: true, weight: 20, hue: 136 },
   { id: 'mindfulness', name: 'Daily mindfulness session',         short: 'Mindfulness', sym: 'Mi', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 8,  hue: 204 },
   { id: 'vitamins',    name: 'Vitamins and supplements',          short: 'Vitamins',    sym: 'Vi', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 3,  hue: 162 },
+  { id: 'walk',        name: 'Walk',                              short: 'Walk',        sym: 'Wk', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 5,  hue: 112, repairAction: 'walk', addedOn: '2026-11-16' },
+  { id: 'wholeFast',   name: 'Whole-day fast',                    short: 'Full fast',   sym: 'Fx', category: 'health',    kind: 'positive', cadence: 'occasional', weight: 25, hue: 186, addedOn: '2026-11-16' },
   { id: 'alcohol',     name: 'Alcohol intake',                    short: 'Alcohol',     sym: 'Et', category: 'health',    kind: 'negative', cadence: 'event',  weight: 12, unit: 'drink', hue: 344 },
   { id: 'dailyText',   name: 'Daily text read',                   short: 'Daily text',  sym: 'Dt', category: 'spiritual', kind: 'positive', cadence: 'daily',  weight: 5,  hue: 46 },
   { id: 'bible',       name: 'Daily Bible reading',               short: 'Bible reading', sym: 'Br', category: 'spiritual', kind: 'positive', cadence: 'daily', weight: 8, hue: 36 },
   { id: 'study',       name: 'Weekly personal study project',     short: 'Personal study', sym: 'Ps', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 20, hue: 24 },
-  { id: 'midweek',     name: 'Midweek meeting prep',              short: 'Midweek prep', sym: 'Mw', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 15, hue: 54 },
-  { id: 'watchtower',  name: 'Watchtower study prep for Sunday',  short: 'Watchtower prep', sym: 'Wt', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 15, hue: 14 }
+  { id: 'midweek1',    name: 'Midweek meeting prep, step 1',      short: 'Midweek 1',   sym: 'M1', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 7,  hue: 54, stepOf: 'midweek', addedOn: '2026-11-16' },
+  { id: 'midweek2',    name: 'Midweek meeting prep, step 2',      short: 'Midweek 2',   sym: 'M2', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 8,  hue: 60, stepOf: 'midweek', addedOn: '2026-11-16' },
+  { id: 'watchtower1', name: 'Watchtower study prep, step 1',     short: 'Watchtower 1', sym: 'W1', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 7, hue: 14, stepOf: 'watchtower', addedOn: '2026-11-16' },
+  { id: 'watchtower2', name: 'Watchtower study prep, step 2',     short: 'Watchtower 2', sym: 'W2', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 8, hue: 8, stepOf: 'watchtower', addedOn: '2026-11-16' }
 ];
+/* Habits from before the 2026-11-16 set, kept so older files and their entries still read. */
+var RETIRED_HABITS = [
+  { id: 'midweek',     name: 'Midweek meeting prep',              short: 'Midweek prep', sym: 'Mw', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 15, hue: 54, archived: true, archivedOn: '2026-11-16' },
+  { id: 'watchtower',  name: 'Watchtower study prep for Sunday',  short: 'Watchtower prep', sym: 'Wt', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 15, hue: 14, archived: true, archivedOn: '2026-11-16' }
+];
+var HABIT_SET = 2, HABITS_V2_SINCE = '2026-11-16';
 
 /* The four domains. Habits can be added freely, each in one of these. */
 var DOMAINS = [
@@ -188,9 +202,9 @@ function newData() {
   var now = new Date().toISOString();
   return {
     app: 'strand', schema: SCHEMA,
-    meta: { createdAt: now, updatedAt: now, sample: false, label: '', seq: 0, rowSeq: 0 },
+    meta: { createdAt: now, updatedAt: now, sample: false, label: '', seq: 0, rowSeq: 0, habitSet: HABIT_SET },
     settings: clone(DEFAULT_SETTINGS),
-    habits: clone(DEFAULT_HABITS),
+    habits: clone(DEFAULT_HABITS).map(function (h) { delete h.addedOn; return h; }),   // a new file tracks every habit from day one
     routines: clone(DEFAULT_ROUTINES),
     log: [],          // every check-in, positive and negative
     ledger: [],       // every point movement, shared by all modules
@@ -222,6 +236,14 @@ function normalize(d) {
       if (r && c.rule && c.rule.stableDays === r[0]) { c.rule.stableDays = r[1]; c.note = r[2]; }
     });
   }
+  // Migration to habit set 2: add the new habits (dated, so the past is untouched) and
+  // retire the single-step prep habits; their old entries count for both new steps.
+  if (d.meta && typeof d.meta === 'object' && !(d.meta.habitSet >= HABIT_SET) && Array.isArray(d.habits)) {
+    var have = {}; d.habits.forEach(function (h) { have[h.id] = h; });
+    DEFAULT_HABITS.forEach(function (h) { if (!have[h.id]) d.habits.push(clone(h)); });
+    ['midweek', 'watchtower'].forEach(function (id) { var h = have[id]; if (h && !h.archived) setArchived(h, true, HABITS_V2_SINCE); });
+    d.meta.habitSet = HABIT_SET;
+  }
   ['meta', 'settings', 'habits', 'routines', 'log', 'ledger', 'rolls', 'milestones', 'traits', 'media', 'importedIds', 'derived', 'modules'].forEach(function (k) {
     if (d[k] === undefined) d[k] = blank[k];
   });
@@ -240,6 +262,17 @@ function setArchived(h, on, today) {
   if (on) { h.archived = true; h.archivedOn = today; }
   else { delete h.archived; delete h.archivedOn; }
 }
+/* Has a repair on this day already used this action? */
+function repairUsed(data, actionId, date) {
+  return data.log.some(function (e) { return e.kind === 'negative' && e.repair && e.repair.action === actionId && e.loggedOn === date; });
+}
+/* Occasional habits: how many consecutive days were logged right before this date. */
+function runBefore(data, habitId, date) {
+  var n = 0, d = addDays(date, -1);
+  while (data.log.some(function (e) { return e.habitId === habitId && e.date === d; })) { n++; d = addDays(d, -1); }
+  return n;
+}
+function escalatedPay(S, h, run) { return Math.max(1, Math.round(h.weight * Math.pow(S.streakGrowth || 1, run))); }
 function habitMap(data) { var m = {}; data.habits.forEach(function (h) { m[h.id] = h; }); return m; }
 function addRow(data, row) {
   row.id = 'P' + (++data.meta.rowSeq);
@@ -396,9 +429,18 @@ function derive(data, today, opt) {
   data.habits.forEach(function (h) {
     if (h.kind !== 'positive') return;
     var n = 0, i, from = h.addedOn || '';
+    if (h.cadence === 'occasional') {
+      // a run of consecutive days, ending today or yesterday; never broken by a day it was not meant to be done
+      for (i = days.length - 1; i >= 0; i--) {
+        if (days[i].done[h.id]) n++; else if (days[i].date === today && n === 0) continue; else break;
+      }
+      streaks[h.id] = { n: n, unit: 'day', days: n };
+      return;
+    }
     if (h.cadence === 'weekly') {
       var count = {};
-      log.forEach(function (e) { if (e.habitId === h.id) { var w = weekStart(e.date, S.weekStartsOn); count[w] = (count[w] || 0) + 1; } });
+      // a step that replaced an older single habit: that habit's entries count for the step (so its streak carries on)
+      log.forEach(function (e) { if (e.habitId === h.id || (h.stepOf && e.habitId === h.stepOf)) { var w = weekStart(e.date, S.weekStartsOn); count[w] = (count[w] || 0) + 1; } });
       for (i = weeks.length - 1; i >= 0; i--) {
         var met = (count[weeks[i].start] || 0) >= (h.weeklyTarget || 1);
         if (met) n++; else if (!weeks[i].closed) continue; else break;
@@ -505,7 +547,9 @@ function checkIn(data, habitId, date, opt) {
   if (!h) return { error: 'Unknown habit: ' + habitId };
   if (!validDate(date)) return { error: 'Bad date: ' + date };
   if (date > today) return { error: 'That day has not happened yet.' };
+  if (!activeOn(h, date)) return { error: h.short + ' was not tracked on that day.' };
   if (h.kind === 'negative') return logNegative(data, h, date, opt, today, now);
+  if (h.repairAction && repairUsed(data, h.repairAction, date)) return { error: 'That day\'s ' + h.short.toLowerCase() + ' already sealed a repair. One walk counts once.', code: 'repairUsed' };
 
   if (data.log.some(function (e) { return e.habitId === habitId && e.date === date; })) return { error: h.short + ' is already logged for that day.', code: 'duplicate' };
   if (h.cadence === 'weekly' && !h.beyondTarget) {
@@ -516,9 +560,10 @@ function checkIn(data, habitId, date, opt) {
 
   var before = derive(data, today);
   var streak = before.streaks[habitId] ? before.streaks[habitId].days : 0;
-  var tier = thinTier(S, streak), fx = before.fx;
+  var tier = h.cadence === 'occasional' ? S.thinning[0] : thinTier(S, streak), fx = before.fx;
   var chance = Math.min(S.bonusChanceCap, tier.bonusChance + (fx.bonus[h.category] || 0));
-  var base = Math.max(1, Math.round(h.weight * tier.basePct));
+  var run = h.cadence === 'occasional' ? runBefore(data, habitId, date) : 0;
+  var base = h.cadence === 'occasional' ? escalatedPay(S, h, run) : Math.max(1, Math.round(h.weight * tier.basePct));
 
   var key = date + '|' + habitId, roll = data.rolls[key];
   if (!roll) { roll = [Math.round(rng() * 1e6) / 1e6, Math.round(rng() * 1e6) / 1e6]; data.rolls[key] = roll; }
@@ -527,6 +572,7 @@ function checkIn(data, habitId, date, opt) {
 
   var seq = ++data.meta.seq;
   var entry = { id: 'L' + seq, seq: seq, module: 'habits', date: date, habitId: habitId, kind: 'positive', points: base, streakAtLog: streak, loggedAt: now, loggedOn: today };
+  if (h.cadence === 'occasional') entry.runDay = run + 1;
   if (bonus) entry.bonus = bonus;
   if (opt.importId) entry.importId = opt.importId;
   if (opt.note) entry.note = String(opt.note);
@@ -613,6 +659,8 @@ function repair(data, logId, actionId, opt) {
   if (e.repair) return { error: 'That pair is already repaired.' };
   if (e.loggedOn !== today) return { error: 'The repair window closed at the end of the day it was logged.' };
   var action = S.repair.actions.find(function (a) { return a.id === actionId; }) || { id: actionId, label: actionId };
+  var twin = data.habits.find(function (h) { return h.repairAction === action.id && data.log.some(function (x) { return x.habitId === h.id && x.date === today; }); });
+  if (twin) return { error: 'Today\'s ' + twin.short.toLowerCase() + ' is already checked in as a habit. One walk counts once, so pick another action.', code: 'habitUsed' };
   var seq = ++data.meta.seq;
   var re = Math.round(((e.clawback && e.clawback.taken) || 0) * derive(data, today).fx.repairRate);
   if (re > 0) addRow(data, { seq: seq, date: today, source: 'repair', logId: e.id, habitId: e.habitId, amount: re, note: action.label });
@@ -756,7 +804,7 @@ function buildSample(today) {
               2, 'M', 3, 2, 'F', 3, 3,     // week 2: Tuesday missed, the starting shield covers it
               2, 3, 'M', 'M', 'M', 3, 2,   // week 3: three days away. Two shields, then a true gap
               1, 2, 2, 3, 'F', 1];         // week 4, Monday to Saturday
-  var weekly = { 1: ['gym'], 2: ['midweek'], 4: ['gym'], 5: ['study', 'watchtower'] }; // by weekday offset from Monday
+  var weekly = { 1: ['gym'], 2: ['midweek1', 'midweek2'], 4: ['gym'], 5: ['study', 'watchtower1', 'watchtower2'] }; // by weekday offset from Monday
   var n = daysBetween(start, addDays(today, -1)) + 1;
   for (var i = 0; i < n; i++) {
     var date = addDays(start, i), p = i < plan.length ? plan[i] : (i % 2 ? 1 : 2), wd = i % 7;
@@ -774,7 +822,7 @@ function buildSample(today) {
 }
 
 root.StrandEngine = {
-  SCHEMA: SCHEMA, DOMAINS: DOMAINS, RULES_V2_SINCE: RULES_V2_SINCE, activeOn: activeOn, setArchived: setArchived, DEFAULT_SETTINGS: DEFAULT_SETTINGS, DEFAULT_HABITS: DEFAULT_HABITS, DEFAULT_ROUTINES: DEFAULT_ROUTINES,
+  SCHEMA: SCHEMA, DOMAINS: DOMAINS, RETIRED_HABITS: RETIRED_HABITS, runBefore: runBefore, escalatedPay: escalatedPay, repairUsed: repairUsed, RULES_V2_SINCE: RULES_V2_SINCE, activeOn: activeOn, setArchived: setArchived, DEFAULT_SETTINGS: DEFAULT_SETTINGS, DEFAULT_HABITS: DEFAULT_HABITS, DEFAULT_ROUTINES: DEFAULT_ROUTINES,
   newData: newData, normalize: normalize, derive: derive, snapshot: snapshot, checkIn: checkIn, repair: repair,
   removeEntry: removeEntry, pickTrait: pickTrait, fxAt: fxAt, importEntries: importEntries, mediaRequest: mediaRequest, buildSample: buildSample,
   stageList: stageList, thinTier: thinTier, habitMap: habitMap,
