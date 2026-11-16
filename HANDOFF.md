@@ -8,8 +8,64 @@ Newest entry first. Each session adds one entry: what changed, why, what is unte
 - Listen through the walkthrough once on the phone; if a caption changes early or late, adjust that line's `at` time in `GUIDE_CHAPTERS`.
 - Phone strand view: the field is mostly empty space at 390 px; consider a lower default zoom on phones.
 - **Build weekly challenges and bonus drops** from the design in the 2026-11-15 entry below (engine work: Opus or Fable). Suggested split: session 1 drops, session 2 challenges and stakes.
+- **Build domains and percentage molecules** from the design in the 2026-11-16 entry below (engine work: Opus or Fable). Suggested split: session 1 `addedOn`/`archivedOn` and rule dating (the retroactive fix, needed before any new daily habit); session 2 domains, the molecule and solid-day rules; session 3 split prep steps, new habits, walk-or-repair.
 - Idea raised but not started: the `nutrition` module (calories and macros, same data file and points ledger).
 - A leftover `add-source` branch exists on GitHub; it can be deleted from pull request #1.
+
+## 2026-11-16: design for domains, percentage molecules and split prep steps (no code)
+
+Brainstorm with the owner; nothing built. This is the spec for the build sessions. Every number below is a proposed default and belongs in `DEFAULT_SETTINGS`.
+
+**Why:** Strand is meant to help keep commitments that are at risk of being dropped, and a stable molecule should mean "the core done well", not "a perfect day". The owner wants to keep adding habits, so no rule may drift easier or harder just because the habit list grew.
+
+**Owner decisions**
+- **Four fixed domains** (the existing `category` field): `spiritual`, `health`, `career`, `financial`. Habits can be added freely as long as each belongs to one of these. Financial will tie to the planned budgeting and spend-tracker tool.
+- **Molecule by weight percentage per domain**, not all-of and not by count. No anchor (must-do) habits for now.
+- **Only Health and Spiritual decide the molecule.** Financial and Career habits pay points but are optional for the molecule.
+- **No weekly molecule** (considered and dropped).
+- **Stable week, option C:** a solid day is a share of the day's weight, not a flat check-in count.
+- **Walk:** a walk counts as the habit or as the alcohol repair action, never both.
+- **Midweek prep and Watchtower prep split into two steps each** (7 + 8 = 15). Old single entries count as both steps done.
+- **New Health habits:** a fast separate from intermittent fasting, and a walk.
+
+### 1. Habit dating (build first)
+- Today `isStable` runs the *current* habit list over *every past day*, so adding a daily habit would turn old stable days unstable (halos vanish, compound progress drops). That breaks "the strand is the log".
+- Each habit gets `addedOn` (date) and `archivedOn` (date or null). A day is judged only by habits active that day (`addedOn <= date`, not archived before it). Migration through `mergeMissing`: existing habits get `addedOn` = the earliest date in the data file (or today on an empty file).
+- **Rule dating:** the molecule and solid-day rules below apply from the date they ship (stored setting, e.g. `rulesSince`); earlier days keep the old rules (all dailies per category; 4 check-ins per solid day), so no compound or bonded week appears or disappears in the past. Same principle as genes: a change never rewrites the past.
+
+### 2. Daily molecule
+- Setting: `molecule: { health: 0.70, spiritual: 0.70 }` (replaces `stableDay.fractionPerCategory`). A domain left out of the block does not gate the molecule.
+- A day is stable when, for each listed domain, the **set weight** of positive daily habits done ≥ the percentage × the total set weight of positive daily habits active that day in that domain.
+- Use each habit's set `weight`, never the points actually paid (thinning lowers pay as streaks mature, and bonuses are random; a paid-points threshold would get harder with success and depend on luck).
+- Weekly habits do not count toward the molecule.
+- Example (current Health dailies, total 44 at 70% = 30.8): missing fasting still passes (34); skipping sleep and fasting while doing the four light habits fails (24).
+- Small domains are brittle: Spiritual has two dailies (5 + 8), so 70% means both. Adding a third daily (for example prayer) gives it room to flex.
+
+### 3. Solid day and stable week (option C)
+- Setting: `stableWeek: { solidDayWeightPct: 0.40, minSolidDays: 5 }` (replaces `solidDayMinCheckins` for days after `rulesSince`).
+- A day is solid when the set weight of **all positive check-ins** that day (daily and weekly, every domain, Financial and Career included) ≥ 40% of the total set weight of daily positive habits active that day (every domain).
+- Keeps two levels of difficulty (solid day = showed up; molecule = core done well) and stops the drift where each new habit made a flat 4 check-ins easier. Gives weekly, Financial and Career check-ins a structural role.
+- Bonding and shields are unchanged: a week with 5 solid days closes stable.
+
+### 4. Split prep steps
+- `midweek` (15) → two weekly habits, step 1 (7) and step 2 (8); `watchtower` (15) the same. Deck shows 0 of 2, 1 of 2, 2 of 2 for the week. Each step keeps its own streak.
+- Old `midweek` / `watchtower` entries count as both steps done for weekly progress and streaks; already-paid ledger rows are not touched. The old habits are archived with `archivedOn` = ship date.
+- The "Early prep" challenge in the 2026-11-15 spec should read both midweek steps.
+
+### 5. New habits and walk-or-repair
+- Walk: Health, daily, proposed weight 5.
+- Separate fast: Health; cadence and weight still to settle with the owner (daily or a weekly longer fast).
+- Walk-or-repair: one walk per day. Whichever is logged first claims it; the other option shows as used that day. Undo frees it. No double pay.
+
+### Knock-on effects to check
+- 70% makes molecules easier than all-of, so the stable-day compounds (Glycine 3, Adenine 10, Serotonin 25) and the Stable core gene come faster. Consider raising those thresholds when this ships.
+- Points per day rise as habits are added, so stages come faster. Watch it; stage thresholds live in `DEFAULT_SETTINGS`.
+- Ideas raised but not decided: daily prayer and JW.org videos (Spiritual), budgeting habits (Financial), career lead actions as weekly habits (Career). A concern was raised that scoring prayer (bonuses, thinning) may pull against its purpose; one option is low or zero weight with no bonus rolls.
+
+### Data and tests
+- New fields with safe defaults through `mergeMissing`; a `SCHEMA` bump only if the prep-step migration needs one.
+- Tests to add: adding a daily habit leaves past stable days stable; archiving keeps past days unchanged; days before `rulesSince` use the old rules; molecule uses set weight not paid points; Financial/Career never gate the molecule; weekly habits don't count toward the molecule but do count toward a solid day; old prep entries count as both steps; walk cannot pay as habit and repair the same day; export/import still round-trips.
+- Walkthrough: molecule and stable-week chapters need a script change and re-recording (see `CLAUDE.md`).
 
 ## 2026-11-15: version numbering
 
