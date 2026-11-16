@@ -19,7 +19,8 @@ Brainstorm with the owner; nothing built. This is the spec for the build session
 - Drops are placed **on a habit**.
 - Challenges are opt-in, with a **stake option**.
 - **Shielded days do not count** toward a challenge. A shield protects the chain, not the challenge.
-- **Staked points are protected from clawback** while in escrow, with a low cap so staking cannot become a shelter.
+- **Alcohol clawback can reach staked points** in escrow (owner's choice, revised the same evening; first answer was "protected"). The behavior costs, including what is staked.
+- **Flat drop value** (owner's choice): a drop pays the same points whatever the habit's weight.
 
 **Hard rule:** no challenge may read negative entries. A challenge counts positive check-ins only, so logging a negative honestly can never cost a challenge (same reasoning as "no gene may soften the alcohol clawback").
 
@@ -29,19 +30,19 @@ Brainstorm with the owner; nothing built. This is the spec for the build session
 - The next check-in of that habit pays the sealed bonus. The habit's normal bonus roll still happens, so a double bonus is possible.
 - Undo of that check-in returns the drop to the card with the same sealed roll.
 - Shown as a gold capsule on the habit card, never on the strand (the strand is the log). On check-in it becomes that rung's bonus mark.
-- Drop pay goes to loose points.
-- **Open, recommendation:** flat drop value (same points whatever the habit's weight), so drops are placed to steer behavior rather than always on the 20-weight weekly habits. Alternative: scale by weight like normal bonuses. Confirm before building.
+- Drop pay goes to loose points. **Flat value per bonus type** (one setting each for crit, vesicle, rare isotope), not a multiple of the habit's weight, so drops are placed to steer behavior rather than always on the 20-weight weekly habits.
 
 ### Weekly challenges
 - Offered when a week opens (Monday; the week closes after Sunday). Offer of 3, seeded by the week's date like genes. Skipping is free. Opt-in only on the first day of the week.
 - Candidate challenges: Weak link (lowest-rate daily habit over the last 4 weeks, 6 of 7 days); Double helix (both stacks bonded the same day, 4 times); Molecule run (3 stable molecules); Over target (gym 3 times); Early prep (midweek prep and personal study before the midweek meeting); Unbroken (no gaps, no shield spent).
 - **Win instantly** when the target is hit (full feedback, drop lands then). **Lose** at week close or when the target becomes unreachable. Backfill can only help (positives only), never turn a win into a loss. Undo of a check-in that completed a challenge reverts the win.
 - **Free:** small point reward and a standard drop.
-- **Staked:** stake taken from loose points only (never bonded), held in escrow, protected from clawback. Cap: about 25% of loose points or a fixed ceiling, whichever is lower. Win: stake back plus a premium (around 1.5x the stake) and a drop with better odds of rarer types. Lose: stake is lost at week close.
+- **Staked:** stake taken from loose points only (never bonded), held in escrow. Cap: about 25% of loose points or a fixed ceiling, whichever is lower (kept to limit the risk, no longer needed against sheltering). Win: what is left of the escrow back plus a premium (around 1.5x what is left) and a drop with better odds of rarer types. Lose: the escrow is lost at week close.
+- **Clawback and escrow:** escrow counts as loose points dated at opt-in, so the existing newest-first order takes the week's newer loose gains before it. The day cap and rolling-week cap still bound the total; escrow adds no extra loss beyond them. Clawback into escrow never fails the challenge (challenges ignore negatives); it only shrinks the payout. A repair re-earns into loose points, not back into escrow.
 
 ### Data
 - New `challenges: []` and `drops: []` with safe defaults through `mergeMissing`; no `SCHEMA` bump needed. Ledger rows for stake, escrow release, payouts and drop bonuses carry `module`.
-- Tests to add: sealed drop roll survives undo/redo; challenges ignore negatives; shielded days do not count; escrow untouched by clawback; stake cap enforced; backfill cannot flip a win to a loss; export/import still round-trips.
+- Tests to add: sealed drop roll survives undo/redo; challenges ignore negatives; shielded days do not count; clawback reaches escrow only after newer loose gains and within the caps; payout uses what is left of the escrow; a clawed escrow does not fail the challenge; stake cap enforced; flat drop value ignores habit weight; backfill cannot flip a win to a loss; export/import still round-trips.
 - Walkthrough: new rules need a script change and re-recording (see `CLAUDE.md`).
 
 ## 2026-11-15: walkthrough plays recorded MP3s
