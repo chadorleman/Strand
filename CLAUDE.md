@@ -3,6 +3,12 @@
 A personal habit tracker played as a growing DNA strand, for one user (Chad).
 Live at https://chadorleman.github.io/Strand/ (GitHub Pages serves `index.html` from `main`).
 
+## Read these too
+
+- `WORKFLOW.md`: how a coding session runs (scope approval first, model choice, build, test, commit, handoff).
+- `HANDOFF.md`: what the last session did and what is next. Read its top entry before starting.
+- `DESIGN.md`: colours, type, what every mark on the strand means, motion and phone rules.
+
 ## Layout
 
 | Path | What it is |
