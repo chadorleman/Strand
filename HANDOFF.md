@@ -8,9 +8,21 @@ Newest entry first. Each session adds one entry: what changed, why, what is unte
 - Listen through the walkthrough once on the phone; if a caption changes early or late, adjust that line's `at` time in `GUIDE_CHAPTERS`.
 - Phone strand view: the field is mostly empty space at 390 px; consider a lower default zoom on phones.
 - **Build weekly challenges and bonus drops** from the design in the 2026-11-15 entry below (engine work: Opus or Fable). Suggested split: session 1 drops, session 2 challenges and stakes.
-- **Build domains and percentage molecules** from the design in the 2026-11-16 entry below (engine work: Opus or Fable). Suggested split: session 1 `addedOn`/`archivedOn` and rule dating (the retroactive fix, needed before any new daily habit); session 2 domains, the molecule and solid-day rules; session 3 split prep steps, new habits, walk-or-repair.
+- **Next build: new habits** from the 2026-11-16 design (engine: Opus or Fable). Whole-day fast: Health, a new `occasional` cadence (never in a daily total, never "missed"), base 25, each consecutive fast day pays 120% of the day before (25, 30, 36, 43…), **exempt from thinning** (owner approved). Walk: Health daily, weight 5, one walk a day counts as the habit or the alcohol repair, never both. Split Midweek and Watchtower prep into two steps (7 + 8); old 15-point entries count as both steps; archive the old habits with `archivedOn`. New habits in an existing file need a migration that adds them with `addedOn` = ship date (`mergeMissing` does not add array items).
+- **Walkthrough re-recording:** chapters 04 and 05 of `video/guide-script.md` are rewritten for the new molecule and solid-day rules. Chapters 02, 03 and 07 will change with the new habits; record them all together after that build, then update lines and `at` times in `GUIDE_CHAPTERS`. Until then the old audio and captions describe the old rules.
+- No UI yet to add a habit; adding one means a code change with `addedOn`. Worth building once the domains fill up.
 - Idea raised but not started: the `nutrition` module (calories and macros, same data file and points ledger).
 - A leftover `add-source` branch exists on GitHub; it can be deleted from pull request #1.
+
+## 2026-11-16: domains, weight-based molecules, dated rules (v1.2)
+
+**Changed (engine):** a stable molecule is now Health and Spiritual each reaching 70% of the set weight of their daily habits active that day (not all of them, and not paid points, so thinning and bonuses don't move it). Financial and Career never gate it. A solid day is all positive check-ins (weekly and every domain included) reaching 40% of the day's total daily weight. Habits carry `addedOn` / `archivedOn` and each day is judged only by habits active then; archiving in Settings now stamps `archivedOn`. Undo keeps a day's molecule if the day is still stable without that entry (the row moves to another entry that day).
+
+**Migration:** a file without `settings.rulesSince` gets `2026-11-16` and its old numbers in `legacyRules`; days before that keep the all-dailies molecule and the 4-check-in solid day, so no past halo, bonded week or milestone changes. Compound thresholds raised 3/10/25 → 5/15/40 (Glycine, Adenine, Serotonin) only where they matched the old defaults; compounds already reached stay. Settings reset keeps `rulesSince` and `legacyRules`. New files and sample data use the new rules everywhere.
+
+**Screens:** domain headers show weight toward the molecule ("24 of 31 weight") or "extra points" for Financial/Career; the molecule ring shows only gating habits; the card says which domain is short; the week card describes the 40% rule (or the old count for weeks before the ship date). Settings: Health and Spiritual shares and the solid-day share replace the two old rows. Walkthrough script chapters 04 and 05 rewritten; audio not re-recorded yet.
+
+**Tested:** 77 engine tests, 0 failed (new: weight not pay, Financial never gates, weekly counts for solid not molecule, added and archived habits leave the past alone, migration keeps old days on old rules and is idempotent, undo keeps or drops the molecule correctly). Screenshots at 1440×900 and 390×844 with the sample. **Untested:** the real data file through GitHub sync (the migration runs on first open; whichever device opens first saves it); the iPhone app itself.
 
 ## 2026-11-16: design for domains, percentage molecules and split prep steps (no code)
 

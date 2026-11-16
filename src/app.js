@@ -389,7 +389,7 @@ function recompute() {
 }
 function relayout() {
   var ghost = {}, td = st.D.byDate[st.today];
-  if (td) { var n = 0; st.data.habits.forEach(function (h) { if (h.kind === 'positive' && h.cadence === 'daily' && !h.archived && !td.done[h.id]) n++; }); ghost[st.today] = n; }
+  if (td) { var n = 0; st.data.habits.forEach(function (h) { if (h.kind === 'positive' && h.cadence === 'daily' && E.activeOn(h, st.today) && !td.done[h.id]) n++; }); ghost[st.today] = n; }
   st.L = HX.layout(st.D.days, { slotW: st.v.slotW, dayGap: st.v.dayGap, ghost: ghost });
   clampScroll();
 }
@@ -490,11 +490,13 @@ function renderDeck() {
     '<span class="earn">' + (earned >= 0 ? '+' : '−') + fmt(Math.abs(earned)) + ' this day</span>' +
     (isToday ? '' : '<button class="back" data-act="today">Back to today</button>') +
     (ed ? '' : '<span class="note">View only. Check-ins stay open for ' + S().backfillDays + ' days.</span>') + '</div>';
-  ['health', 'spiritual'].forEach(function (cat) {
-    var hs = st.data.habits.filter(function (x) { return x.category === cat && !x.archived; });
+  ['health', 'spiritual', 'financial', 'career'].forEach(function (cat) {
+    var hs = st.data.habits.filter(function (x) { return x.category === cat && E.activeOn(x, st.sel); });
     if (!hs.length) return;
     var dl = hs.filter(function (x) { return x.kind === 'positive' && x.cadence === 'daily'; }), dn = dl.filter(function (x) { return day && day.done[x.id]; }).length;
-    h += '<section class="cluster" data-cat="' + cat + '"><h3>' + (cat === 'health' ? 'Health' : 'Spiritual') + '<span>' + dn + ' of ' + dl.length + ' daily atoms in</span></h3><div class="atoms">';
+    var md = day && day.molecule && day.molecule.rule === 'weight' && day.molecule.domains[cat], dom = E.DOMAINS.find(function (x) { return x.id === cat; });
+    var sub = md ? fmt(md.have) + ' of ' + fmt(md.need) + ' weight for the molecule' : (S().molecule && S().molecule[cat] != null) || !dl.length ? dn + ' of ' + dl.length + ' daily atoms in' : 'extra points, never needed for the molecule';
+    h += '<section class="cluster" data-cat="' + cat + '"><h3>' + esc(dom ? dom.name : cat) + '<span>' + sub + '</span></h3><div class="atoms">';
     hs.filter(function (x) { return x.kind === 'positive' && x.cadence === 'daily'; }).forEach(function (x) { h += tile(x, day); });
     hs.filter(function (x) { return x.kind === 'positive' && x.cadence === 'weekly'; }).forEach(function (x) { h += tile(x, day); });
     hs.filter(function (x) { return x.kind === 'negative'; }).forEach(function (x) { h += tile(x, day); });
@@ -512,9 +514,10 @@ function renderDeck() {
 
 /* ============================== side panel =============================== */
 function moleculeSvg(day) {
-  var ids = [], seen = {};
-  st.data.routines.forEach(function (r) { r.habits.forEach(function (id) { var hb = st.habits[id]; if (hb && !seen[id] && hb.cadence === 'daily' && hb.kind === 'positive' && !hb.archived) { seen[id] = 1; ids.push(id); } }); });
-  st.data.habits.forEach(function (hb) { if (!seen[hb.id] && hb.cadence === 'daily' && hb.kind === 'positive' && !hb.archived) ids.push(hb.id); });
+  var ids = [], seen = {}, on = day ? day.date : st.sel, gate = S().molecule || {};
+  var inMol = function (hb) { return hb && hb.cadence === 'daily' && hb.kind === 'positive' && E.activeOn(hb, on) && (!day || !day.molecule || day.molecule.rule !== 'weight' || gate[hb.category] != null); };
+  st.data.routines.forEach(function (r) { r.habits.forEach(function (id) { var hb = st.habits[id]; if (!seen[id] && inMol(hb)) { seen[id] = 1; ids.push(id); } }); });
+  st.data.habits.forEach(function (hb) { if (!seen[hb.id] && inMol(hb)) ids.push(hb.id); });
   var n = ids.length, R = 54, cx = 75, cy = 75, pos = ids.map(function (id, i) { var a = Math.PI * 2 * i / n - Math.PI / 2 + Math.PI / n; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
   var done = function (id) { return day && day.done[id]; }, s = '<svg viewBox="0 0 150 150" role="img" aria-label="Today\'s molecule">';
   for (var i = 0; i < n; i++) {
@@ -557,8 +560,10 @@ function renderSide() {
       h += '<div class="card repair"><h3>Damaged pair<span>' + what + '</span></h3><p><b>−' + cb.taken + '</b> clawed. The repair window closed at the end of the day it was logged, so this pair stays damaged. Nothing else is lost.</p></div>';
     }
   });
-  var m = moleculeSvg(day), left = m.n - m.done;
-  h += '<div class="card"><h3>' + (isToday ? 'Today\'s molecule' : 'That day\'s molecule') + '<span>' + (m.stable ? '+' + D.fx.molecule + ' earned' : left + ' to stable, +' + D.fx.molecule) + '</span></h3><div class="mol' + (m.stable ? ' stable' : '') + '" id="molBox">' + m.svg + '<div class="rts">' +
+  var m = moleculeSvg(day), left = m.n - m.done, short = [];
+  if (day && day.molecule && day.molecule.rule === 'weight') Object.keys(day.molecule.domains).forEach(function (c) { var x = day.molecule.domains[c], dom = E.DOMAINS.find(function (y) { return y.id === c; }); if (x.have < x.need) short.push(esc(dom ? dom.name : c) + ' ' + fmt(Math.ceil(x.need - x.have))); });
+  var toGo = short.length ? short.join(', ') + ' weight to go' : left + ' to stable';
+  h += '<div class="card"><h3>' + (isToday ? 'Today\'s molecule' : 'That day\'s molecule') + '<span>' + (m.stable ? '+' + D.fx.molecule + ' earned' : toGo + ', +' + D.fx.molecule) + '</span></h3><div class="mol' + (m.stable ? ' stable' : '') + '" id="molBox">' + m.svg + '<div class="rts">' +
     st.data.routines.map(function (r) { var c = r.habits.filter(function (id) { return day && day.done[id]; }).length, ok = c === r.habits.length; return '<div class="' + (ok ? 'ok' : '') + '"><b>' + esc(r.name) + '</b>' + (ok ? 'Bonded, +' + D.fx.bond : c + ' of ' + r.habits.length + ' in') + '</div>'; }).join('') + '</div></div></div>';
 
   /* week */
@@ -573,7 +578,7 @@ function renderSide() {
   var msg;
   if (wk.closed) msg = wk.stable ? 'This week closed stable. Its gains are <b>bonded for good</b>, and it earned a shield and a gene.' : 'This week closed with <b>' + wk.solid + ' of ' + need + '</b> solid days, so its gains stayed loose and carried forward.';
   else if (wk.solid >= need) msg = '<b>' + wk.solid + ' solid days.</b> When this week closes, <b>' + fmt(looseWk) + ' loose points</b> bond for good and you earn a shield and a gene.';
-  else msg = '<b>' + wk.solid + ' of ' + need + '</b> solid days (' + S().stableWeek.solidDayMinCheckins + '+ check-ins each). ' + (need - wk.solid) + ' more and this week bonds <b>' + fmt(looseWk) + ' loose points</b> and earns a shield and a gene.';
+  else msg = '<b>' + wk.solid + ' of ' + need + '</b> solid days (' + (S().rulesSince && wk.end < S().rulesSince ? (S().legacyRules || {}).solidDayMinCheckins + '+ check-ins each' : Math.round(S().stableWeek.solidDayWeightPct * 100) + '% of the day\'s habit weight each') + '). ' + (need - wk.solid) + ' more and this week bonds <b>' + fmt(looseWk) + ' loose points</b> and earns a shield and a gene.';
   h += '<div class="card"><h3>This week<span>' + shortDate(ws).slice(4) + ' to ' + shortDate(wk.end).slice(4) + '</span></h3><div class="week">' + cells + '</div><p>' + msg + '</p></div>';
   /* genome: what has been expressed so far */
   var ex = S().traits.filter(function (t) { return D.fx.levels[t.id]; });
@@ -775,13 +780,14 @@ function ledgerHtml() {
 var NUMS = [
   ['points.integrity', 'Honest-log reward', 'Paid every time a negative is logged'],
   ['points.bond', 'Routine bond', 'All habits of a routine in one day'],
-  ['points.stableMolecule', 'Stable molecule', 'Every daily habit in every category'],
+  ['points.stableMolecule', 'Stable molecule', 'Health and Spiritual each reach their share of daily weight'],
+  ['molecule.health', 'Health share for a stable molecule', '0.7 means 70% of the day\'s Health daily weight'],
+  ['molecule.spiritual', 'Spiritual share for a stable molecule', '0.7 means 70% of the day\'s Spiritual daily weight'],
   ['clawback.dayCap', 'Clawback cap, one day', ''], ['clawback.weekCap', 'Clawback cap, any 7 days', ''],
   ['repair.rate', 'Repair re-earn rate', '0.6 means 60% comes back'],
   ['shields.starting', 'Shields to start with', ''], ['shields.max', 'Most shields you can hold', ''],
-  ['stableWeek.solidDayMinCheckins', 'Check-ins that make a solid day', ''], ['stableWeek.minSolidDays', 'Solid days that make a stable week', 'A stable week bonds gains and earns a shield'],
+  ['stableWeek.solidDayWeightPct', 'Share of the day\'s weight that makes a solid day', 'Every positive check-in counts, weekly and extra-points habits too'], ['stableWeek.minSolidDays', 'Solid days that make a stable week', 'A stable week bonds gains and earns a shield'],
   ['activeDay.minCheckins', 'Check-ins that keep the chain', 'Fewer than this is a missed day'],
-  ['stableDay.fractionPerCategory', 'Share of daily habits for a stable molecule', '1 means all of them'],
   ['traitOfferCount', 'Genes offered at each pick', ''], ['bonusChanceCap', 'Highest bonus odds any habit can reach', '0.6 means 60%'],
   ['backfillDays', 'Days you can go back to check in', ''], ['stageOverflowStep', 'Points per generation after the last stage', '']
 ];
@@ -905,13 +911,13 @@ function drawerAct(a, el) {
       refreshAll(); Store.save(); toast('<b>Applied.</b>', 'gold');
     } catch (e) { toast('Not applied: ' + esc(e.message), 'bad'); }
   }
-  else if (a === 'resetSettings') modal('Reset every number?', 'Weights, caps, odds, stages and routines go back to their starting values. Your log and points stay as they are.', [{ label: 'Reset', cls: 'go', fn: function () { st.data.settings = U.clone(E.DEFAULT_SETTINGS); st.data.routines = U.clone(E.DEFAULT_ROUTINES); st.data.habits.forEach(function (hb) { var d = E.DEFAULT_HABITS.find(function (x) { return x.id === hb.id; }); if (d) { hb.weight = d.weight; if (d.weeklyTarget) hb.weeklyTarget = d.weeklyTarget; } }); refreshAll(); Store.save(); } }]);
+  else if (a === 'resetSettings') modal('Reset every number?', 'Weights, caps, odds, stages and routines go back to their starting values. Your log and points stay as they are.', [{ label: 'Reset', cls: 'go', fn: function () { var keepSince = S().rulesSince, keepLegacy = S().legacyRules; st.data.settings = U.clone(E.DEFAULT_SETTINGS); st.data.settings.rulesSince = keepSince || ''; if (keepLegacy) st.data.settings.legacyRules = keepLegacy; st.data.routines = U.clone(E.DEFAULT_ROUTINES); st.data.habits.forEach(function (hb) { var d = E.DEFAULT_HABITS.find(function (x) { return x.id === hb.id; }); if (d) { hb.weight = d.weight; if (d.weeklyTarget) hb.weeklyTarget = d.weeklyTarget; } }); refreshAll(); Store.save(); } }]);
 }
 function drawerChange(el) {
   var v = Number(el.value);
   if (el.dataset.hw) { if (!(v >= 0)) return; st.habits[el.dataset.hw].weight = v; }
   else if (el.dataset.ht) { if (!(v >= 1)) return; st.habits[el.dataset.ht].weeklyTarget = Math.round(v); }
-  else if (el.dataset.ha) { st.habits[el.dataset.ha].archived = el.checked; if (!el.checked) delete st.habits[el.dataset.ha].archived; }
+  else if (el.dataset.ha) { E.setArchived(st.habits[el.dataset.ha], el.checked, st.today); }
   else if (el.dataset.num) { if (!isFinite(v) || el.value === '') return; setPath(S(), el.dataset.num, v); }
   else return;
   recompute(); renderHUD(); renderDeck(); renderSide(); Store.save();

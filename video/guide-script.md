@@ -5,7 +5,7 @@ Nine chapters, one MP3 per chapter. Name the files exactly as shown (`guide-01.m
 Recording notes for Muse:
 - Calm, friendly, unhurried voice. About 1 second of silence between lines, and none at the start or end of a file.
 - Say "DNA" as three letters: D, N, A.
-- Numbers are the default settings as of 15 Nov 2026.
+- Numbers are the default settings as of 16 Nov 2026.
 - MP3, mono, 44.1 kHz, 128 kbps or higher.
 
 ---
@@ -41,18 +41,18 @@ At the same time its bonus odds rise, from 10 percent to 30 percent. A long stre
 
 ## guide-04.mp3: Bonds and stable molecules
 
-The molecule on the right shows today's daily atoms.
+The molecule on the right shows today's daily atoms for health and spiritual.
 Finish every habit in a routine on the same day, and those atoms bond.
 The morning stack is sleep, daily text, vitamins and push-ups.
 The evening stack is Bible reading, mindfulness, fasting and water.
 Each bond pays 5 points.
-Finish every daily habit in both categories, and the day becomes a stable molecule.
-A stable molecule pays 15 points, and that day gets a gold halo on the strand.
+When your health habits and your spiritual habits each reach 70 percent of their daily weight, the day becomes a stable molecule. Heavier habits count for more, so you can miss one thing, but not the core.
+A stable molecule pays 15 points, and that day gets a gold halo on the strand. Career and financial habits pay extra points, but they are never needed for a molecule.
 
 ## guide-05.mp3: Stable weeks and shields
 
 Points start out loose. Loose points can be lost to a clawback, which comes up in a moment.
-A solid day has at least 4 check-ins. A week with 5 solid days closes stable.
+A solid day is one where your check-ins add up to 40 percent of the day's habit weight. Weekly habits count toward it too. A week with 5 solid days closes stable.
 When a stable week closes, all of its loose points bond for good. Bonded points can never be taken back.
 The line under the strand shows this. Solid purple is bonded. Dashed is still loose.
 A stable week also earns a shield. You can hold up to 3.

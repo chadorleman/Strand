@@ -122,7 +122,10 @@ console.log('BONDS / MOLECULE');
   ok(ev.filter(e => e.type === 'molecule').length === 1 && E.derive(d, t).byDate[t].stable, 'full day formed a stable molecule');
   ok(E.derive(d, t).points === 57 + 10 + 15, 'points: 57 base + 2 bonds + molecule = 82');
   const sleepId = d.log.find(e => e.habitId === 'sleep').id; E.removeEntry(d, sleepId, t);
-  ok(E.derive(d, t).points === 82 - 10 - 5 - 15, 'undoing one habit also removes its bond and the molecule reward');
+  ok(E.derive(d, t).points === 82 - 10 - 5 && E.derive(d, t).byDate[t].stable, 'undoing sleep removes its bond; Health still at 34 of 44 (70%), so the molecule stays');
+  ok(d.ledger.filter(r => r.source === 'molecule').every(r => d.log.some(e => e.id === r.logId)), 'a kept molecule row points at an entry still in the log');
+  const fastId = d.log.find(e => e.habitId === 'fasting').id; E.removeEntry(d, fastId, t);
+  ok(E.derive(d, t).points === 82 - 10 - 5 - 10 - 5 - 15 && !E.derive(d, t).byDate[t].stable, 'undoing fasting too drops Health to 24 of 44: bond and molecule go');
 }
 
 console.log('IMPORT ENTRIES');
@@ -184,5 +187,64 @@ console.log('GENES');
   x = mk('stableCore'); x.traits[0].pickedOn = '2026-03-09'; ok(E.derive(x, '2026-03-05').fx.molecule === 15 && E.derive(x, '2026-03-09').fx.molecule === 20, 'a gene works only from the day it was picked');
   const txt = JSON.stringify(d); ok(JSON.stringify(E.normalize(JSON.parse(txt))) === txt, 'gene picks survive export and import');
 }
+
+console.log('DOMAINS / DATED RULES');
+{
+  const t = '2026-03-02', all = ['sleep', 'dailyText', 'vitamins', 'pushups', 'bible', 'mindfulness', 'fasting', 'water'];
+  // molecule uses set weight, not paid points: skip sleep + fasting (the heavy two) -> Health 24 of 44 fails
+  const a = E.newData();
+  ['dailyText', 'bible', 'vitamins', 'pushups', 'mindfulness', 'water'].forEach(h => E.checkIn(a, h, t, { today: t, rng: never }));
+  ok(!E.derive(a, t).byDate[t].stable, 'four light Health habits (24 of 44) do not make a molecule');
+  E.checkIn(a, 'sleep', t, { today: t, rng: never });
+  ok(E.derive(a, t).byDate[t].stable && a.ledger.some(r => r.source === 'molecule'), 'adding sleep (34 of 44) does, and pays the molecule');
+  // thinning lowers pay but not the molecule test
+  const b = E.newData();
+  for (let i = 0; i < 30; i++) { const dt = U.addDays(t, i); all.forEach(h => E.checkIn(b, h, dt, { today: dt, rng: never })); }
+  const last = U.addDays(t, 29);
+  ok(b.log.filter(e => e.date === last && e.habitId === 'sleep')[0].points < 10 && E.derive(b, last).byDate[last].stable, 'thinned pay still counts full weight for the molecule');
+  // Financial and Career never gate the molecule
+  const c = E.newData();
+  c.habits.push({ id: 'budgetLog', name: 'Log spending', short: 'Spending', sym: 'Bu', category: 'financial', kind: 'positive', cadence: 'daily', weight: 5, hue: 120 });
+  all.forEach(h => E.checkIn(c, h, t, { today: t, rng: never }));
+  ok(E.derive(c, t).byDate[t].stable, 'an undone Financial daily does not block the molecule');
+  // weekly habits: count toward a solid day, not toward the molecule
+  const w = E.newData();
+  ['gym', 'study'].forEach(h => E.checkIn(w, h, t, { today: t, rng: never }));
+  const wd = E.derive(w, t).byDate[t];
+  ok(wd.solid && !wd.stable, 'gym + personal study (40 weight vs 40% of 57) make a solid day but no molecule');
+  const v = E.newData(); ['water', 'vitamins', 'dailyText', 'pushups'].forEach(h => E.checkIn(v, h, t, { today: t, rng: never }));
+  ok(!E.derive(v, t).byDate[t].solid, 'four light check-ins (21 of 57) are not a solid day under the weight rule');
+  // adding a daily habit later leaves past days as they were
+  const p = E.newData();
+  all.forEach(h => E.checkIn(p, h, t, { today: t, rng: never }));
+  p.habits.push({ id: 'walk2', name: 'Walk', short: 'Walk', sym: 'Wk', category: 'health', kind: 'positive', cadence: 'daily', weight: 30, hue: 100, addedOn: U.addDays(t, 5) });
+  ok(E.derive(p, U.addDays(t, 6)).byDate[t].stable, 'a heavy habit added later does not unmake a past molecule');
+  ok(!E.derive(p, U.addDays(t, 6)).streaks.walk2.n, 'its streak starts at zero');
+  // archiving keeps the past
+  const q = E.newData();
+  ['dailyText', 'bible', 'sleep', 'water', 'fasting', 'pushups'].forEach(h => E.checkIn(q, h, t, { today: t, rng: never }));
+  const before = E.derive(q, t).byDate[t].stable;
+  E.setArchived(q.habits.find(h => h.id === 'sleep'), true, U.addDays(t, 3));
+  ok(E.derive(q, U.addDays(t, 4)).byDate[t].stable === before && before, 'archiving a habit later leaves past days unchanged');
+  // a file from before the new rules: old days keep old rules, compounds raised, rules after the ship date
+  const old = E.newData();
+  delete old.settings.rulesSince; delete old.settings.legacyRules; delete old.settings.molecule;
+  old.settings.stableDay = { fractionPerCategory: 1 }; old.settings.stableWeek = { solidDayMinCheckins: 4, minSolidDays: 5 };
+  old.settings.compounds.forEach(cp => { if (cp.id === 'glycine') { cp.rule.stableDays = 3; } if (cp.id === 'serotonin') cp.rule.stableDays = 33; });
+  const pre = '2026-11-10', post = '2026-11-17', light = ['dailyText', 'bible', 'sleep', 'water', 'fasting', 'pushups', 'mindfulness'];
+  light.forEach(h => E.checkIn(old, h, pre, { today: pre, rng: never }));
+  const mig = E.normalize(JSON.parse(JSON.stringify(old)));
+  ok(mig.settings.rulesSince === E.RULES_V2_SINCE && mig.settings.legacyRules.solidDayMinCheckins === 4 && mig.settings.stableDay === undefined, 'migration dates the rules and keeps the old numbers');
+  ok(mig.settings.compounds.find(x => x.id === 'glycine').rule.stableDays === 5 && mig.settings.compounds.find(x => x.id === 'serotonin').rule.stableDays === 33, 'compound thresholds raised only where they matched the old defaults');
+  light.forEach(h => E.checkIn(mig, h, post, { today: post, rng: never }));
+  const md = E.derive(mig, post);
+  ok(!md.byDate[pre].stable && md.byDate[pre].molecule.rule === 'all', 'a day before the ship date keeps the all-daily molecule rule');
+  ok(md.byDate[post].stable && md.byDate[post].molecule.rule === 'weight', 'the same check-ins after it make a molecule by weight');
+  const vit = E.newData(); delete vit.settings.rulesSince; const vn = E.normalize(vit);
+  ['water', 'vitamins', 'dailyText', 'pushups'].forEach(h => E.checkIn(vn, h, pre, { today: pre, rng: never }));
+  ok(E.derive(vn, pre).byDate[pre].solid, 'before the ship date, 4 check-ins still make a solid day');
+  ok(JSON.stringify(E.normalize(JSON.parse(JSON.stringify(mig)))) === JSON.stringify(mig), 'normalizing a migrated file again changes nothing');
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

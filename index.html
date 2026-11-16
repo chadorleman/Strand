@@ -514,7 +514,7 @@ textarea{width:100%;min-height:150px;font-family:"Cascadia Mono",Consolas,monosp
 <input type="file" id="filePick" hidden>
 
 <script>
-window.STRAND_VERSION = {"version": "1.1", "major": 1, "build": 1, "date": "2026-11-15"};
+window.STRAND_VERSION = {"version": "1.2", "major": 1, "build": 2, "date": "2026-11-16"};
 </script>
 <script>
 /* ==========================================================================
@@ -543,12 +543,21 @@ var DEFAULT_SETTINGS = {
   },
 
   activeDay: { minCheckins: 1 },      // fewer positives than this = a missed day (a gap)
-  stableDay: { fractionPerCategory: 1 }, // share of each category's daily habits needed for a stable molecule
+
+  // Stable molecule: each listed domain must reach this share of the set weight of its
+  // daily habits active that day. Domains not listed (career, financial) never gate it.
+  molecule: { health: 0.70, spiritual: 0.70 },
 
   stableWeek: {
-    solidDayMinCheckins: 4,           // a "solid day" has at least this many positives
+    solidDayWeightPct: 0.40,          // a "solid day": all positive check-ins reach this share of the day's daily weight
     minSolidDays: 5                   // a week with this many solid days closes stable: gains bond, a shield is earned
   },
+
+  // Rules never rewrite the past. Days before this date are judged by the rules that
+  // were in force when they were logged (all daily habits for a molecule, a check-in
+  // count for a solid day). Empty = the current rules everywhere (new files).
+  rulesSince: '',
+  legacyRules: { fractionPerCategory: 1, solidDayMinCheckins: 4 },
 
   shields: { starting: 1, max: 3, perStableWeek: 1 },
 
@@ -626,12 +635,12 @@ var DEFAULT_SETTINGS = {
 
   // Milestone compounds. Each one completed opens a collectible card slot.
   compounds: [
-    { id: 'glycine',    name: 'Glycine',    formula: 'C2H5NO2',        rule: { stableDays: 3 },   note: 'Three stable molecules' },
+    { id: 'glycine',    name: 'Glycine',    formula: 'C2H5NO2',        rule: { stableDays: 5 },   note: 'Five stable molecules' },
     { id: 'ribose',     name: 'Ribose',     formula: 'C5H10O5',        rule: { bondedWeeks: 1 },  note: 'First week bonded' },
-    { id: 'adenine',    name: 'Adenine',    formula: 'C5H5N5',         rule: { stableDays: 10 },  note: 'Ten stable molecules' },
+    { id: 'adenine',    name: 'Adenine',    formula: 'C5H5N5',         rule: { stableDays: 15 },  note: 'Fifteen stable molecules' },
     { id: 'atp',        name: 'ATP',        formula: 'C10H16N5O13P3',  rule: { chain: 14 },       note: 'A 14-day chain' },
     { id: 'ligase',     name: 'Ligase',     formula: 'repair enzyme',  rule: { repairs: 3 },      note: 'Three pairs repaired' },
-    { id: 'serotonin',  name: 'Serotonin',  formula: 'C10H12N2O',      rule: { stableDays: 25 },  note: 'Twenty-five stable molecules' },
+    { id: 'serotonin',  name: 'Serotonin',  formula: 'C10H12N2O',      rule: { stableDays: 40 },  note: 'Forty stable molecules' },
     { id: 'histone',    name: 'Histone',    formula: 'packing protein', rule: { bondedWeeks: 4 }, note: 'Four weeks bonded' },
     { id: 'telomerase', name: 'Telomerase', formula: 'end keeper',     rule: { chain: 60 },       note: 'A 60-day chain' }
   ]
@@ -654,6 +663,18 @@ var DEFAULT_HABITS = [
   { id: 'midweek',     name: 'Midweek meeting prep',              short: 'Midweek prep', sym: 'Mw', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 15, hue: 54 },
   { id: 'watchtower',  name: 'Watchtower study prep for Sunday',  short: 'Watchtower prep', sym: 'Wt', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 15, hue: 14 }
 ];
+
+/* The four domains. Habits can be added freely, each in one of these. */
+var DOMAINS = [
+  { id: 'spiritual', name: 'Spiritual' },
+  { id: 'health',    name: 'Health' },
+  { id: 'career',    name: 'Career' },
+  { id: 'financial', name: 'Financial' }
+];
+
+/* The day these scoring rules shipped. Files made before it judge earlier days by the old rules. */
+var RULES_V2_SINCE = '2026-11-16';
+var COMPOUND_RAISE = { glycine: [3, 5, 'Five stable molecules'], adenine: [10, 15, 'Fifteen stable molecules'], serotonin: [25, 40, 'Forty stable molecules'] };
 
 /* Routines: habits that bond when all are done the same day. */
 var DEFAULT_ROUTINES = [
@@ -706,6 +727,20 @@ function normalize(d) {
   if (!d || d.app !== 'strand') throw new Error('This is not a Strand data file.');
   if (d.schema > SCHEMA) throw new Error('This data file was made by a newer version of Strand.');
   var blank = newData();
+  // Migration to dated rules: a file from before them keeps its past exactly as it was.
+  if (d.settings && typeof d.settings === 'object' && d.settings.rulesSince === undefined) {
+    d.settings.rulesSince = RULES_V2_SINCE;
+    d.settings.legacyRules = {
+      fractionPerCategory: d.settings.stableDay && d.settings.stableDay.fractionPerCategory != null ? d.settings.stableDay.fractionPerCategory : 1,
+      solidDayMinCheckins: d.settings.stableWeek && d.settings.stableWeek.solidDayMinCheckins != null ? d.settings.stableWeek.solidDayMinCheckins : 4
+    };
+    delete d.settings.stableDay;
+    if (d.settings.stableWeek) delete d.settings.stableWeek.solidDayMinCheckins;
+    (d.settings.compounds || []).forEach(function (c) {
+      var r = COMPOUND_RAISE[c.id];
+      if (r && c.rule && c.rule.stableDays === r[0]) { c.rule.stableDays = r[1]; c.note = r[2]; }
+    });
+  }
   ['meta', 'settings', 'habits', 'routines', 'log', 'ledger', 'rolls', 'milestones', 'traits', 'media', 'importedIds', 'derived', 'modules'].forEach(function (k) {
     if (d[k] === undefined) d[k] = blank[k];
   });
@@ -714,6 +749,16 @@ function normalize(d) {
   return d;
 }
 
+/* Is a habit part of the game on a given day? (Added on or before it, not yet archived.) */
+function activeOn(h, date) {
+  if (h.addedOn && date < h.addedOn) return false;
+  if (h.archivedOn) return date < h.archivedOn;
+  return !h.archived;
+}
+function setArchived(h, on, today) {
+  if (on) { h.archived = true; h.archivedOn = today; }
+  else { delete h.archived; delete h.archivedOn; }
+}
 function habitMap(data) { var m = {}; data.habits.forEach(function (h) { m[h.id] = h; }); return m; }
 function addRow(data, row) {
   row.id = 'P' + (++data.meta.rowSeq);
@@ -799,14 +844,46 @@ function derive(data, today, opt) {
     });
   });
 
+  // Daily habits active on a date, by domain. Each day is judged only by the habits that existed then.
+  function dailyOn(date) {
+    var by = {};
+    data.habits.forEach(function (h) { if (h.kind === 'positive' && h.cadence === 'daily' && activeOn(h, date)) (by[h.category] = by[h.category] || []).push(h); });
+    return by;
+  }
   var dailyByCat = {};
-  data.habits.forEach(function (h) { if (h.kind === 'positive' && h.cadence === 'daily' && !h.archived) (dailyByCat[h.category] = dailyByCat[h.category] || []).push(h.id); });
-  function isStable(dy) {
-    var cats = Object.keys(dailyByCat); if (!cats.length) return false;
-    return cats.every(function (c) {
-      var ids = dailyByCat[c], need = Math.ceil(ids.length * S.stableDay.fractionPerCategory);
-      return ids.filter(function (id) { return dy.done[id]; }).length >= need;
-    });
+  Object.keys(dailyOn(today)).forEach(function (c) { dailyByCat[c] = dailyOn(today)[c].map(function (h) { return h.id; }); });
+  var since = S.rulesSince || '', LG = S.legacyRules || { fractionPerCategory: 1, solidDayMinCheckins: 4 };
+  var EPS = 1e-9;
+  // Molecule and solid-day progress for one day. Uses each habit's set weight, never the points paid.
+  function judge(dy) {
+    var by = dailyOn(dy.date), legacy = since && dy.date < since, cats = Object.keys(by);
+    var mol = { rule: legacy ? 'all' : 'weight', domains: {}, stable: false };
+    if (legacy) {
+      mol.stable = cats.length > 0 && cats.every(function (c) {
+        var need = Math.ceil(by[c].length * LG.fractionPerCategory), have = by[c].filter(function (h) { return dy.done[h.id]; }).length;
+        mol.domains[c] = { have: have, need: need, total: by[c].length };
+        return have >= need;
+      });
+    } else {
+      var gated = Object.keys(S.molecule || {}).filter(function (c) { return by[c] && by[c].length; });
+      gated.forEach(function (c) {
+        var total = 0, have = 0;
+        by[c].forEach(function (h) { total += h.weight; if (dy.done[h.id]) have += h.weight; });
+        mol.domains[c] = { have: have, need: Math.round(total * S.molecule[c] * 10) / 10, total: total };
+      });
+      mol.stable = gated.length > 0 && gated.every(function (c) { var m = mol.domains[c]; return m.have + EPS >= m.total * S.molecule[c]; });
+    }
+    var solid;
+    if (legacy) solid = { rule: 'count', have: dy.pos, need: LG.solidDayMinCheckins };
+    else {
+      var dayTotal = 0, got = 0;
+      cats.forEach(function (c) { by[c].forEach(function (h) { dayTotal += h.weight; }); });
+      dy.entries.forEach(function (e) { if (e.kind === 'positive') { var h = H[e.habitId]; if (h) got += h.weight; } });
+      solid = { rule: 'weight', have: got, need: Math.round(dayTotal * S.stableWeek.solidDayWeightPct * 10) / 10, total: dayTotal };
+      solid.met = dayTotal > 0 && got + EPS >= dayTotal * S.stableWeek.solidDayWeightPct;
+    }
+    if (solid.rule === 'count') solid.met = dy.pos >= solid.need;
+    return { mol: mol, solid: solid };
   }
 
   var shields = S.shields.starting, chain = 0, bestChain = 0, bondedThrough = null, bondedWeeks = 0;
@@ -820,8 +897,9 @@ function derive(data, today, opt) {
     else if (isToday) { dy.state = 'open'; }
     else if (chain > 0 && shields > 0) { shields--; dy.state = 'shielded'; shielded.push(dy.date); }
     else { chain = 0; dy.state = 'gap'; gaps.push(dy.date); }
-    dy.solid = dy.pos >= S.stableWeek.solidDayMinCheckins; if (dy.solid) wk.solid++;
-    dy.stable = isStable(dy); if (dy.stable) stableDays++;
+    var jd = judge(dy); dy.molecule = jd.mol; dy.solidInfo = jd.solid;
+    dy.solid = jd.solid.met; if (dy.solid) wk.solid++;
+    dy.stable = jd.mol.stable; if (dy.stable) stableDays++;
     data.routines.forEach(function (r) { if (r.habits.length && r.habits.every(function (id) { return dy.done[id]; })) dy.bonds.push(r.id); });
     if (dy.date === wk.end && wk.end < today) {
       wk.closed = true; wk.stable = wk.solid >= S.stableWeek.minSolidDays;
@@ -836,7 +914,7 @@ function derive(data, today, opt) {
   var streaks = {};
   data.habits.forEach(function (h) {
     if (h.kind !== 'positive') return;
-    var n = 0, i;
+    var n = 0, i, from = h.addedOn || '';
     if (h.cadence === 'weekly') {
       var count = {};
       log.forEach(function (e) { if (e.habitId === h.id) { var w = weekStart(e.date, S.weekStartsOn); count[w] = (count[w] || 0) + 1; } });
@@ -848,6 +926,7 @@ function derive(data, today, opt) {
     } else {
       for (i = days.length - 1; i >= 0; i--) {
         var dd = days[i];
+        if (dd.date < from) break;
         if (dd.done[h.id]) n++; else if (dd.date === today || dd.state === 'shielded') continue; else break;
       }
       streaks[h.id] = { n: n, unit: 'day', days: n };
@@ -1082,7 +1161,7 @@ function pickTrait(data, weekEnd, traitId, opt) {
 function removeEntry(data, logId, today) {
   var e = data.log.find(function (x) { return x.id === logId; });
   if (!e) return { error: 'Entry not found.' };
-  var der = derive(data, today), bt = der.bondedThrough;
+  var der = derive(data, today), bt = der.bondedThrough, keep = null, heir = null;
   var mine = data.ledger.filter(function (r) { return r.logId === logId; });
   if (e.kind === 'negative') {
     if (e.repair) return { error: 'This entry was repaired, so it stays on the strand.' };
@@ -1098,10 +1177,20 @@ function removeEntry(data, logId, today) {
     });
     var h = data.habits.find(function (x) { return x.id === e.habitId; });
     if (!(h && h.cadence === 'daily')) mine = mine.filter(function (r) { return r.source !== 'molecule' || r.logId === logId; });
+    // under the weight rule a day can stay stable without this check-in: then its molecule stays
+    var molRow = mine.find(function (r) { return r.source === 'molecule'; });
+    keep = null; heir = null;
+    if (molRow) {
+      var rest = data.log.filter(function (x) { return x.id !== logId; });
+      var still = derive({ settings: data.settings, habits: data.habits, routines: data.routines, log: rest, ledger: [], milestones: [], traits: data.traits }, today).byDate[e.date];
+      heir = rest.find(function (x) { return x.date === e.date && x.kind === 'positive'; });
+      if (still && still.stable && heir) { mine = mine.filter(function (r) { return r !== molRow; }); keep = molRow; }
+    }
     var touched = mine.some(function (r) { return r.amount > 0 && (r.remaining !== r.amount || (bt && r.date <= bt)); });
     if (touched) return { error: 'These points have already bonded or been clawed back, so the entry stays.' };
   }
   data.ledger = data.ledger.filter(function (r) { return mine.indexOf(r) < 0; });
+  if (keep && keep.logId === logId) keep.logId = heir.id;
   data.log = data.log.filter(function (x) { return x.id !== logId; });
   var dead = data.milestones.filter(function (m) { return m.atSeq === e.seq; }).map(function (m) { return m.id; });
   data.milestones = data.milestones.filter(function (m) { return dead.indexOf(m.id) < 0; });
@@ -1204,7 +1293,7 @@ function buildSample(today) {
 }
 
 root.StrandEngine = {
-  SCHEMA: SCHEMA, DEFAULT_SETTINGS: DEFAULT_SETTINGS, DEFAULT_HABITS: DEFAULT_HABITS, DEFAULT_ROUTINES: DEFAULT_ROUTINES,
+  SCHEMA: SCHEMA, DOMAINS: DOMAINS, RULES_V2_SINCE: RULES_V2_SINCE, activeOn: activeOn, setArchived: setArchived, DEFAULT_SETTINGS: DEFAULT_SETTINGS, DEFAULT_HABITS: DEFAULT_HABITS, DEFAULT_ROUTINES: DEFAULT_ROUTINES,
   newData: newData, normalize: normalize, derive: derive, snapshot: snapshot, checkIn: checkIn, repair: repair,
   removeEntry: removeEntry, pickTrait: pickTrait, fxAt: fxAt, importEntries: importEntries, mediaRequest: mediaRequest, buildSample: buildSample,
   stageList: stageList, thinTier: thinTier, habitMap: habitMap,
@@ -1906,7 +1995,7 @@ function recompute() {
 }
 function relayout() {
   var ghost = {}, td = st.D.byDate[st.today];
-  if (td) { var n = 0; st.data.habits.forEach(function (h) { if (h.kind === 'positive' && h.cadence === 'daily' && !h.archived && !td.done[h.id]) n++; }); ghost[st.today] = n; }
+  if (td) { var n = 0; st.data.habits.forEach(function (h) { if (h.kind === 'positive' && h.cadence === 'daily' && E.activeOn(h, st.today) && !td.done[h.id]) n++; }); ghost[st.today] = n; }
   st.L = HX.layout(st.D.days, { slotW: st.v.slotW, dayGap: st.v.dayGap, ghost: ghost });
   clampScroll();
 }
@@ -2007,11 +2096,13 @@ function renderDeck() {
     '<span class="earn">' + (earned >= 0 ? '+' : '−') + fmt(Math.abs(earned)) + ' this day</span>' +
     (isToday ? '' : '<button class="back" data-act="today">Back to today</button>') +
     (ed ? '' : '<span class="note">View only. Check-ins stay open for ' + S().backfillDays + ' days.</span>') + '</div>';
-  ['health', 'spiritual'].forEach(function (cat) {
-    var hs = st.data.habits.filter(function (x) { return x.category === cat && !x.archived; });
+  ['health', 'spiritual', 'financial', 'career'].forEach(function (cat) {
+    var hs = st.data.habits.filter(function (x) { return x.category === cat && E.activeOn(x, st.sel); });
     if (!hs.length) return;
     var dl = hs.filter(function (x) { return x.kind === 'positive' && x.cadence === 'daily'; }), dn = dl.filter(function (x) { return day && day.done[x.id]; }).length;
-    h += '<section class="cluster" data-cat="' + cat + '"><h3>' + (cat === 'health' ? 'Health' : 'Spiritual') + '<span>' + dn + ' of ' + dl.length + ' daily atoms in</span></h3><div class="atoms">';
+    var md = day && day.molecule && day.molecule.rule === 'weight' && day.molecule.domains[cat], dom = E.DOMAINS.find(function (x) { return x.id === cat; });
+    var sub = md ? fmt(md.have) + ' of ' + fmt(md.need) + ' weight for the molecule' : (S().molecule && S().molecule[cat] != null) || !dl.length ? dn + ' of ' + dl.length + ' daily atoms in' : 'extra points, never needed for the molecule';
+    h += '<section class="cluster" data-cat="' + cat + '"><h3>' + esc(dom ? dom.name : cat) + '<span>' + sub + '</span></h3><div class="atoms">';
     hs.filter(function (x) { return x.kind === 'positive' && x.cadence === 'daily'; }).forEach(function (x) { h += tile(x, day); });
     hs.filter(function (x) { return x.kind === 'positive' && x.cadence === 'weekly'; }).forEach(function (x) { h += tile(x, day); });
     hs.filter(function (x) { return x.kind === 'negative'; }).forEach(function (x) { h += tile(x, day); });
@@ -2029,9 +2120,10 @@ function renderDeck() {
 
 /* ============================== side panel =============================== */
 function moleculeSvg(day) {
-  var ids = [], seen = {};
-  st.data.routines.forEach(function (r) { r.habits.forEach(function (id) { var hb = st.habits[id]; if (hb && !seen[id] && hb.cadence === 'daily' && hb.kind === 'positive' && !hb.archived) { seen[id] = 1; ids.push(id); } }); });
-  st.data.habits.forEach(function (hb) { if (!seen[hb.id] && hb.cadence === 'daily' && hb.kind === 'positive' && !hb.archived) ids.push(hb.id); });
+  var ids = [], seen = {}, on = day ? day.date : st.sel, gate = S().molecule || {};
+  var inMol = function (hb) { return hb && hb.cadence === 'daily' && hb.kind === 'positive' && E.activeOn(hb, on) && (!day || !day.molecule || day.molecule.rule !== 'weight' || gate[hb.category] != null); };
+  st.data.routines.forEach(function (r) { r.habits.forEach(function (id) { var hb = st.habits[id]; if (!seen[id] && inMol(hb)) { seen[id] = 1; ids.push(id); } }); });
+  st.data.habits.forEach(function (hb) { if (!seen[hb.id] && inMol(hb)) ids.push(hb.id); });
   var n = ids.length, R = 54, cx = 75, cy = 75, pos = ids.map(function (id, i) { var a = Math.PI * 2 * i / n - Math.PI / 2 + Math.PI / n; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
   var done = function (id) { return day && day.done[id]; }, s = '<svg viewBox="0 0 150 150" role="img" aria-label="Today\'s molecule">';
   for (var i = 0; i < n; i++) {
@@ -2074,8 +2166,10 @@ function renderSide() {
       h += '<div class="card repair"><h3>Damaged pair<span>' + what + '</span></h3><p><b>−' + cb.taken + '</b> clawed. The repair window closed at the end of the day it was logged, so this pair stays damaged. Nothing else is lost.</p></div>';
     }
   });
-  var m = moleculeSvg(day), left = m.n - m.done;
-  h += '<div class="card"><h3>' + (isToday ? 'Today\'s molecule' : 'That day\'s molecule') + '<span>' + (m.stable ? '+' + D.fx.molecule + ' earned' : left + ' to stable, +' + D.fx.molecule) + '</span></h3><div class="mol' + (m.stable ? ' stable' : '') + '" id="molBox">' + m.svg + '<div class="rts">' +
+  var m = moleculeSvg(day), left = m.n - m.done, short = [];
+  if (day && day.molecule && day.molecule.rule === 'weight') Object.keys(day.molecule.domains).forEach(function (c) { var x = day.molecule.domains[c], dom = E.DOMAINS.find(function (y) { return y.id === c; }); if (x.have < x.need) short.push(esc(dom ? dom.name : c) + ' ' + fmt(Math.ceil(x.need - x.have))); });
+  var toGo = short.length ? short.join(', ') + ' weight to go' : left + ' to stable';
+  h += '<div class="card"><h3>' + (isToday ? 'Today\'s molecule' : 'That day\'s molecule') + '<span>' + (m.stable ? '+' + D.fx.molecule + ' earned' : toGo + ', +' + D.fx.molecule) + '</span></h3><div class="mol' + (m.stable ? ' stable' : '') + '" id="molBox">' + m.svg + '<div class="rts">' +
     st.data.routines.map(function (r) { var c = r.habits.filter(function (id) { return day && day.done[id]; }).length, ok = c === r.habits.length; return '<div class="' + (ok ? 'ok' : '') + '"><b>' + esc(r.name) + '</b>' + (ok ? 'Bonded, +' + D.fx.bond : c + ' of ' + r.habits.length + ' in') + '</div>'; }).join('') + '</div></div></div>';
 
   /* week */
@@ -2090,7 +2184,7 @@ function renderSide() {
   var msg;
   if (wk.closed) msg = wk.stable ? 'This week closed stable. Its gains are <b>bonded for good</b>, and it earned a shield and a gene.' : 'This week closed with <b>' + wk.solid + ' of ' + need + '</b> solid days, so its gains stayed loose and carried forward.';
   else if (wk.solid >= need) msg = '<b>' + wk.solid + ' solid days.</b> When this week closes, <b>' + fmt(looseWk) + ' loose points</b> bond for good and you earn a shield and a gene.';
-  else msg = '<b>' + wk.solid + ' of ' + need + '</b> solid days (' + S().stableWeek.solidDayMinCheckins + '+ check-ins each). ' + (need - wk.solid) + ' more and this week bonds <b>' + fmt(looseWk) + ' loose points</b> and earns a shield and a gene.';
+  else msg = '<b>' + wk.solid + ' of ' + need + '</b> solid days (' + (S().rulesSince && wk.end < S().rulesSince ? (S().legacyRules || {}).solidDayMinCheckins + '+ check-ins each' : Math.round(S().stableWeek.solidDayWeightPct * 100) + '% of the day\'s habit weight each') + '). ' + (need - wk.solid) + ' more and this week bonds <b>' + fmt(looseWk) + ' loose points</b> and earns a shield and a gene.';
   h += '<div class="card"><h3>This week<span>' + shortDate(ws).slice(4) + ' to ' + shortDate(wk.end).slice(4) + '</span></h3><div class="week">' + cells + '</div><p>' + msg + '</p></div>';
   /* genome: what has been expressed so far */
   var ex = S().traits.filter(function (t) { return D.fx.levels[t.id]; });
@@ -2292,13 +2386,14 @@ function ledgerHtml() {
 var NUMS = [
   ['points.integrity', 'Honest-log reward', 'Paid every time a negative is logged'],
   ['points.bond', 'Routine bond', 'All habits of a routine in one day'],
-  ['points.stableMolecule', 'Stable molecule', 'Every daily habit in every category'],
+  ['points.stableMolecule', 'Stable molecule', 'Health and Spiritual each reach their share of daily weight'],
+  ['molecule.health', 'Health share for a stable molecule', '0.7 means 70% of the day\'s Health daily weight'],
+  ['molecule.spiritual', 'Spiritual share for a stable molecule', '0.7 means 70% of the day\'s Spiritual daily weight'],
   ['clawback.dayCap', 'Clawback cap, one day', ''], ['clawback.weekCap', 'Clawback cap, any 7 days', ''],
   ['repair.rate', 'Repair re-earn rate', '0.6 means 60% comes back'],
   ['shields.starting', 'Shields to start with', ''], ['shields.max', 'Most shields you can hold', ''],
-  ['stableWeek.solidDayMinCheckins', 'Check-ins that make a solid day', ''], ['stableWeek.minSolidDays', 'Solid days that make a stable week', 'A stable week bonds gains and earns a shield'],
+  ['stableWeek.solidDayWeightPct', 'Share of the day\'s weight that makes a solid day', 'Every positive check-in counts, weekly and extra-points habits too'], ['stableWeek.minSolidDays', 'Solid days that make a stable week', 'A stable week bonds gains and earns a shield'],
   ['activeDay.minCheckins', 'Check-ins that keep the chain', 'Fewer than this is a missed day'],
-  ['stableDay.fractionPerCategory', 'Share of daily habits for a stable molecule', '1 means all of them'],
   ['traitOfferCount', 'Genes offered at each pick', ''], ['bonusChanceCap', 'Highest bonus odds any habit can reach', '0.6 means 60%'],
   ['backfillDays', 'Days you can go back to check in', ''], ['stageOverflowStep', 'Points per generation after the last stage', '']
 ];
@@ -2422,13 +2517,13 @@ function drawerAct(a, el) {
       refreshAll(); Store.save(); toast('<b>Applied.</b>', 'gold');
     } catch (e) { toast('Not applied: ' + esc(e.message), 'bad'); }
   }
-  else if (a === 'resetSettings') modal('Reset every number?', 'Weights, caps, odds, stages and routines go back to their starting values. Your log and points stay as they are.', [{ label: 'Reset', cls: 'go', fn: function () { st.data.settings = U.clone(E.DEFAULT_SETTINGS); st.data.routines = U.clone(E.DEFAULT_ROUTINES); st.data.habits.forEach(function (hb) { var d = E.DEFAULT_HABITS.find(function (x) { return x.id === hb.id; }); if (d) { hb.weight = d.weight; if (d.weeklyTarget) hb.weeklyTarget = d.weeklyTarget; } }); refreshAll(); Store.save(); } }]);
+  else if (a === 'resetSettings') modal('Reset every number?', 'Weights, caps, odds, stages and routines go back to their starting values. Your log and points stay as they are.', [{ label: 'Reset', cls: 'go', fn: function () { var keepSince = S().rulesSince, keepLegacy = S().legacyRules; st.data.settings = U.clone(E.DEFAULT_SETTINGS); st.data.settings.rulesSince = keepSince || ''; if (keepLegacy) st.data.settings.legacyRules = keepLegacy; st.data.routines = U.clone(E.DEFAULT_ROUTINES); st.data.habits.forEach(function (hb) { var d = E.DEFAULT_HABITS.find(function (x) { return x.id === hb.id; }); if (d) { hb.weight = d.weight; if (d.weeklyTarget) hb.weeklyTarget = d.weeklyTarget; } }); refreshAll(); Store.save(); } }]);
 }
 function drawerChange(el) {
   var v = Number(el.value);
   if (el.dataset.hw) { if (!(v >= 0)) return; st.habits[el.dataset.hw].weight = v; }
   else if (el.dataset.ht) { if (!(v >= 1)) return; st.habits[el.dataset.ht].weeklyTarget = Math.round(v); }
-  else if (el.dataset.ha) { st.habits[el.dataset.ha].archived = el.checked; if (!el.checked) delete st.habits[el.dataset.ha].archived; }
+  else if (el.dataset.ha) { E.setArchived(st.habits[el.dataset.ha], el.checked, st.today); }
   else if (el.dataset.num) { if (!isFinite(v) || el.value === '') return; setPath(S(), el.dataset.num, v); }
   else return;
   recompute(); renderHUD(); renderDeck(); renderSide(); Store.save();
