@@ -25,7 +25,7 @@ Live at https://chadorleman.github.io/Strand/ (GitHub Pages serves `index.html` 
 2. `python3 build.py` to regenerate `index.html`.
 3. `node test/engine.test.js` (and `python3 test/gh_flow.py` when storage or sync code changes).
 4. Look at the page: screenshot it at desktop (1440×900, 1366×768) and phone (390×844) sizes. He uses it on an iPhone home-screen app and a Windows PC.
-5. Commit `src/` changes and the rebuilt `index.html` together.
+5. Commit `src/` changes and the rebuilt `index.html` together, **directly to `main`** (no branches or pull requests; the owner chose this). Pages publishes within a minute or two.
 
 Keep it one self-contained file: no CDN, no framework, no build tooling beyond `build.py`.
 
