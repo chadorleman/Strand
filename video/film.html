@@ -1,0 +1,118 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}canvas{display:block}</style></head><body>
+<canvas id="c" width="1280" height="720"></canvas>
+<script>/*HELIX*/</script>
+<script>
+var REQ = /*REQ*/;
+var HX = window.StrandHelix, C = HX.C, rgba = HX.rgba;
+var W = 1280, H = 720, cv = document.getElementById('c'), ctx = cv.getContext('2d');
+var layer = document.createElement('canvas'); layer.width = W; layer.height = H; var lctx = layer.getContext('2d');
+var days = REQ.strand, habits = REQ.habits, routines = {}; REQ.routines.forEach(function (r) { routines[r.id] = r; });
+var FONT = '"Inter Display", Inter, sans-serif';
+var TA = 2.4, TB = 8.4, TC = 2.4, TD = 4.8, TOTAL = TA + TB + TC + TD;
+function lay(sw) { return HX.layout(days, { slotW: sw, dayGap: sw * 0.6 }); }
+var L17 = lay(17), units = L17.width / 17, FIT = 1010 / units, LF = lay(FIT);
+function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+function eio(x) { x = clamp(x, 0, 1); return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2; }
+function eout(x) { x = clamp(x, 0, 1); return 1 - Math.pow(1 - x, 3); }
+function revealAt(t) { var u = clamp((t - TA) / TB, 0, 1); return (0.12 * eio(u) + 0.88 * u) * (L17.width + 60); }
+
+/* callouts: only things that are in the log */
+function callouts(L) {
+  var out = [], run = null;
+  L.days.forEach(function (day, i) {
+    var d = day.d;
+    if (!d.slots.length && (d.state === 'shielded' || d.state === 'gap')) {
+      if (run && run.kind === d.state && run.last === i - 1) { run.x1 = day.x1; run.n++; run.last = i; }
+      else { run = { kind: d.state, x0: day.x0, x1: day.x1, n: 1, last: i }; out.push(run); }
+    }
+    day.slots.forEach(function (sl) { if (sl.s.t === 'damaged') out.push({ kind: 'damaged', x0: sl.x, x1: sl.x, n: 1 }); if (sl.s.t === 'repaired') out.push({ kind: 'repaired', x0: sl.x, x1: sl.x, n: 1 }); });
+  });
+  out.forEach(function (c) { c.x = (c.x0 + c.x1) / 2; c.text = c.kind === 'shielded' ? (c.n > 1 ? c.n + ' shields spent' : 'Shield spent') : c.kind === 'gap' ? 'Gap' : c.kind === 'damaged' ? 'Damaged pair' : 'Repaired pair'; c.col = c.kind === 'shielded' ? C.frost : c.kind === 'gap' ? C.ink : c.kind === 'damaged' ? C.lesion : C.gold; });
+  return out;
+}
+function bg(t) {
+  ctx.fillStyle = '#04121a'; ctx.fillRect(0, 0, W, H);
+  var g = ctx.createRadialGradient(200, -60, 0, 200, -60, 1350); g.addColorStop(0, 'rgba(22,96,104,.55)'); g.addColorStop(1, 'rgba(22,96,104,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  g = ctx.createRadialGradient(1230, 780, 0, 1230, 780, 1150); g.addColorStop(0, 'rgba(58,36,120,.5)'); g.addColorStop(1, 'rgba(58,36,120,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+function text(s, x, y, size, weight, col, align, alpha, track) {
+  ctx.save(); ctx.globalAlpha = alpha == null ? 1 : clamp(alpha, 0, 1); ctx.font = weight + ' ' + size + 'px ' + FONT; ctx.fillStyle = col; ctx.textAlign = align || 'left'; ctx.textBaseline = 'alphabetic';
+  if (track) ctx.letterSpacing = track + 'px'; ctx.fillText(s, x, y); ctx.restore();
+}
+function helix(L, o) {
+  HX.draw(lctx, L, Object.assign({ W: W, H: H, dpr: 1, habits: habits, routines: routines, bondedThrough: REQ.stats.bondedThrough, today: null, selected: null, motes: true, moteCount: 70, tip: false, dayNumbers: true, font: FONT, turn: 10.5 }, o));
+  ctx.save(); ctx.globalAlpha = o.alpha == null ? 1 : o.alpha; ctx.drawImage(layer, 0, 0); ctx.restore();
+}
+function drawCallouts(L, o, reveal, alpha) {
+  callouts(L).forEach(function (c) {
+    if (c.x > reveal) return;
+    var a = clamp((reveal - c.x) / 70, 0, 1) * alpha, X = c.x - o.scrollX, up = c.kind !== 'gap' && c.kind !== 'damaged';
+    var y = up ? o.cy - o.amp - 74 : o.cy + o.amp + 96;
+    ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = rgba(c.col, 0.7); ctx.lineWidth = 1.5;
+    ctx.beginPath(); if (up) { ctx.moveTo(X, y + 10); ctx.lineTo(X, o.cy - o.amp - 40); } else { ctx.moveTo(X, y - 22); ctx.lineTo(X, o.cy + o.amp + 60); } ctx.stroke(); ctx.restore();
+    text(c.text, X, y, o.small ? 17 : 21, '600', rgba(c.col, 1), 'center', a);
+  });
+}
+function counts(reveal) {
+  var o = { day: 0, pairs: 0, shields: 0, gaps: 0, repairs: 0 };
+  L17.days.forEach(function (day) { if (day.x0 <= reveal) { o.day = day.i + 1; if (!day.slots.length && day.x1 <= reveal) { if (day.d.state === 'shielded') o.shields++; if (day.d.state === 'gap') o.gaps++; } } day.slots.forEach(function (sl) { if (sl.x <= reveal) { o.pairs++; if (sl.s.t === 'repaired') o.repairs++; } }); });
+  return o;
+}
+function hud(c, alpha) {
+  var y = 648;
+  text('Day ' + c.day, 64, y, 54, '600', '#e6f3f1', 'left', alpha);
+  text('of ' + days.length, 64 + ctx.measureText('').width + (c.day > 9 ? 190 : 158), y, 22, '400', '#8fb2b7', 'left', alpha);
+  var items = [[c.pairs, 'base pairs', '#58efc9'], [c.shields, 'shields spent', '#a8dcff'], [c.gaps, c.gaps === 1 ? 'gap' : 'gaps', '#e6f3f1'], [c.repairs, c.repairs === 1 ? 'repair' : 'repairs', '#ffe9a6']], x = 1216;
+  for (var i = items.length - 1; i >= 0; i--) { text(items[i][1], x, y, 20, '400', '#8fb2b7', 'right', alpha); ctx.font = '400 20px ' + FONT; x -= ctx.measureText(items[i][1]).width + 10; text(String(items[i][0]), x, y, 34, '600', items[i][2], 'right', alpha); ctx.font = '600 34px ' + FONT; x -= ctx.measureText(String(items[i][0])).width + 34; }
+}
+function renderFrame(t) {
+  bg(t);
+  var phase = 0.6 + t * 0.55, S = REQ.stats;
+  if (t < TA) {
+    var a = clamp(t / 0.6, 0, 1) * clamp((TA - t) / 0.5, 0, 1);
+    helix(L17, { scrollX: -W * 0.66, cy: 330, amp: 118, phase: phase, t: t, revealX: 0, labels: false });
+    text('Stage change', W / 2, 300, 24, '600', '#ffe9a6', 'center', a, 2);
+    text('The strand so far', W / 2, 372, 68, '600', '#e6f3f1', 'center', a);
+    text(S.days + ' days and ' + S.basePairs + ' base pairs, with every gap and repair as logged', W / 2, 422, 22, '400', '#8fb2b7', 'center', a);
+  } else if (t < TA + TB) {
+    var rv = revealAt(t), o = { scrollX: Math.max(-140, rv - W * 0.66), cy: 318, amp: 118, phase: phase, t: t, revealX: rv, labels: true };
+    var fade = clamp((TA + TB - t) / 0.01, 0, 1);
+    helix(L17, o); drawCallouts(L17, o, rv, 1); hud(counts(rv), clamp((t - TA) / 0.5, 0, 1));
+  } else if (t < TA + TB + TC) {
+    var u = eio((t - TA - TB) / TC), sw = 17 + (FIT - 17) * u, L = lay(sw);
+    var sFrom = (L17.width + 60) - W * 0.66, sTo = (LF.width - W) / 2;
+    var frac = (sFrom + W * 0.66) / L17.width, sx = (frac * L.width - W * 0.66) * (1 - u) + ((L.width - W) / 2) * u;
+    var o2 = { scrollX: sx, cy: 318 - 18 * u, amp: 118 - 34 * u, phase: phase, t: t, labels: u < 0.15, small: true };
+    helix(L, o2); drawCallouts(L, o2, Infinity, 1); hud(counts(Infinity), 1 - clamp(u * 2.2, 0, 1));
+  } else {
+    var k = t - TA - TB - TC, o3 = { scrollX: (LF.width - W) / 2, cy: 300, amp: 84, phase: phase, t: t, labels: false, small: true };
+    var m = eout(k / 1.7), cx = W / 2, rx = LF.width / 2 + 78, ry = 84 + 96;
+    ctx.save(); var g = ctx.createRadialGradient(cx, 300, 0, cx, 300, rx); g.addColorStop(0, 'rgba(88,239,201,' + 0.10 * m + ')'); g.addColorStop(1, 'rgba(88,239,201,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(cx, 300, rx, ry, 0, 0, 6.2832); ctx.fill(); ctx.restore();
+    helix(LF, o3); drawCallouts(LF, o3, Infinity, 1 - clamp(k / 0.8, 0, 1));
+    /* the membrane closes around the strand: the cell phase begins */
+    ctx.save(); var per = 2 * Math.PI * Math.sqrt((rx * rx + ry * ry) / 2); ctx.setLineDash([per * m, per]); ctx.lineCap = 'round';
+    var gr = ctx.createLinearGradient(cx - rx, 0, cx + rx, 0); gr.addColorStop(0, '#58efc9'); gr.addColorStop(0.5, '#e6f3f1'); gr.addColorStop(1, '#ffbe55');
+    ctx.shadowColor = 'rgba(88,239,201,.9)'; ctx.shadowBlur = 34; ctx.strokeStyle = gr; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(cx, 300, rx, ry, 0, -Math.PI / 2, Math.PI * 1.5); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.setLineDash([2, 13]); ctx.lineWidth = 2.4; ctx.globalAlpha = 0.5 * clamp((k - 1.2) / 0.8, 0, 1); ctx.beginPath(); ctx.ellipse(cx, 300, rx + 13, ry + 13, 0, 0, 6.2832); ctx.stroke(); ctx.restore();
+    var a1 = clamp((k - 0.9) / 0.6, 0, 1), a2 = clamp((k - 1.3) / 0.6, 0, 1), a3 = clamp((k - 1.9) / 0.6, 0, 1), out = clamp((TD - k) / 0.45, 0, 1);
+    text(REQ.milestone.phaseChange ? 'Phase change. The ' + REQ.milestone.phase.toLowerCase() + ' phase begins' : REQ.milestone.phase + ' phase', cx, 548, 23, '600', '#ffe9a6', 'center', a1, 1.5);
+    text(REQ.milestone.name, cx, 632 + (1 - a2) * 14, 82, '700', '#e6f3f1', 'center', a2);
+    text(S.points.toLocaleString('en-US') + ' points      ' + S.days + ' days      ' + S.basePairs + ' base pairs      ' + S.shielded + ' shields spent      ' + S.gaps + (S.gaps === 1 ? ' gap' : ' gaps') + '      ' + S.repaired + (S.repaired === 1 ? ' repair' : ' repairs') + (S.damaged ? '      ' + S.damaged + ' still damaged' : ''), cx, 682, 19, '400', '#8fb2b7', 'center', a3);
+    if (out < 1) { ctx.fillStyle = 'rgba(2,10,16,' + (1 - out) + ')'; ctx.fillRect(0, 0, W, H); }
+  }
+  if (REQ.sample) text('Sample data', 1216, 50, 17, '500', '#ffdca0', 'right', 0.75);
+  text('Strand', 64, 50, 21, '600', '#e6f3f1', 'left', 0.9);
+  if (t < 0.35) { ctx.fillStyle = 'rgba(2,10,16,' + (1 - t / 0.35) + ')'; ctx.fillRect(0, 0, W, H); }
+}
+/* event times for the soundtrack, taken from the same reveal the picture uses */
+function filmEvents() {
+  var ev = [], slots = L17.slots, i = 0, dn = 0, done = {};
+  for (var t = TA; t <= TA + TB + 0.001; t += 1 / 120) {
+    var rv = revealAt(t);
+    while (i < slots.length && slots[i].x <= rv) { ev.push({ t: +t.toFixed(3), type: slots[i].s.t, cat: slots[i].s.cat, bonus: slots[i].s.bonus || null, i: i }); i++; }
+    L17.days.forEach(function (day) { if (!day.slots.length && !done[day.i] && day.mid <= rv) { done[day.i] = 1; ev.push({ t: +t.toFixed(3), type: day.d.state }); } });
+  }
+  return { events: ev, TA: TA, TB: TB, TC: TC, TD: TD, total: TOTAL };
+}
+</script></body></html>

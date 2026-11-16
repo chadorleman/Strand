@@ -1,0 +1,13 @@
+# film pipeline scratch
+video/_film_built.html
+video/events.json
+video/scene_*.mp4
+video/still_*.jpg
+video/list.txt
+video/silent*.mp4
+video/soundtrack.wav
+video/*.tmp.mp4
+# local data never belongs in this public repo
+strand-data.json
+strand-backup-*.json
+__pycache__/

@@ -1,0 +1,8 @@
+{
+  "strandImport": 1,
+  "entries": [
+    { "importId": "example-001", "date": "2026-11-15", "habit": "water" },
+    { "importId": "example-002", "date": "2026-11-15", "habit": "gym", "note": "optional note" },
+    { "importId": "example-003", "date": "2026-11-14", "habit": "alcohol", "amount": 2 }
+  ]
+}
