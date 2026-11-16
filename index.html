@@ -455,7 +455,7 @@ textarea{width:100%;min-height:150px;font-family:"Cascadia Mono",Consolas,monosp
         <div class="splitrow"><div class="split" id="split"><i></i><u></u></div><span class="kb"><b id="bondedN">0</b> bonded</span><span class="kl"><b id="looseN">0</b> loose</span></div>
       </div>
       <nav class="nav" aria-label="Panels">
-        <button id="navGuide" title="A spoken walkthrough of the rules">Walkthrough</button>
+        <button id="navGuide" title="A narrated walkthrough of the rules">Walkthrough</button>
         <button data-open="vault" id="navVault">Vault</button>
         <button data-open="ledger">Ledger</button>
         <button data-open="settings">Settings</button>
@@ -502,7 +502,6 @@ textarea{width:100%;min-height:150px;font-family:"Cascadia Mono",Consolas,monosp
     <button data-g="prev" aria-label="Previous chapter"><svg viewBox="0 0 20 20"><path d="M14 4L6 10l8 6z"/><rect x="4" y="4" width="2" height="12"/></svg></button>
     <button data-g="play" id="gPlay" class="gplay"></button>
     <button data-g="next" aria-label="Next chapter"><svg viewBox="0 0 20 20"><path d="M6 4l8 6-8 6z"/><rect x="14" y="4" width="2" height="12"/></svg></button>
-    <select id="gVoice" aria-label="Voice"></select>
     <select id="gRate" aria-label="Speed"><option value="0.85">0.85×</option><option value="1">1×</option><option value="1.15">1.15×</option><option value="1.3">1.3×</option></select>
   </div>
 </section>
@@ -2431,128 +2430,74 @@ function drawerChange(el) {
 
 
 /* ============================== guide: spoken walkthrough ================ */
-/* Narrated with the browser's own voices (Web Speech API). The script is built
-   from live settings, so every number it says matches what the game does. */
+/* Recorded narration: one MP3 per chapter in media/guide-01.mp3 .. guide-09.mp3.
+   GUIDE_CHAPTERS holds the recorded text (captions) and each line's start time in
+   seconds. The audio is fixed: when a rule or default changes, re-record the chapter
+   and update its lines and times here. */
+var GUIDE_CHAPTERS = [
+  {"title": "Welcome", "target": "#field", "at": [0.0, 2.31, 7.84, 14.46, 22.78, 30.71], "lines": ["Welcome to Strand.", "Strand turns your habits into a growing strand of DNA.", "Every habit you complete adds a base pair, and every day adds a stretch of strand.", "Nothing on the strand is decoration. Its length, its gaps and its repairs all come straight from your log.", "Drag the strand to move through time, and scroll on it to zoom. Hover a base pair to see what it was.", "This walkthrough has nine short chapters. You can jump to any of them from the list."]},
+  {"title": "Checking in", "target": "#left .atoms", "at": [0.0, 5.64, 9.79, 17.86, 25.93, 33.97, 42.67, 50.22], "lines": ["Your daily check-in lives below the strand. Each habit is an atom.", "Tap an atom once when the habit is done.", "It lights up, you hear a tone, the points float up, and a new base pair flies onto the strand.", "Health atoms sit on one side of the helix, and spiritual atoms on the other.", "Tapped the wrong one? Tap it again. The label changes to \"tap again to undo,\" and a second tap removes it.", "Forgot a day? Use the arrows beside the date to step back. You can check in up to 7 days back.", "Weekly habits show a ring that fills toward the week's target. The gym aims for 2 a week, and extra sessions still pay.", "A full day of check-ins takes well under a minute."]},
+  {"title": "Points and bonuses", "target": ".tally", "at": [0.0, 10.34, 14.52, 23.75, 28.48, 36.9], "lines": ["Each habit pays points by weight. A gym session pays 20. Vitamins pay 3. You can change any weight in Settings.", "Now and then, a check-in pays a surprise bonus on top.", "A crit adds the habit's weight again. A vesicle adds twice its weight. A rare isotope adds 4 times its weight.", "You can't predict which tap will pay. That is on purpose.", "As a habit's streak grows, its base pay thins, down to 60 percent after 45 days in a row.", "At the same time its bonus odds rise, from 10 percent to 30 percent. A long streak trades steady pay for bigger surprises."]},
+  {"title": "Bonds and stable molecules", "target": "#molBox", "at": [0.0, 5.18, 11.41, 17.66, 23.65, 26.36, 33.28], "lines": ["The molecule on the right shows today's daily atoms.", "Finish every habit in a routine on the same day, and those atoms bond.", "The morning stack is sleep, daily text, vitamins and push-ups.", "The evening stack is Bible reading, mindfulness, fasting and water.", "Each bond pays 5 points.", "Finish every daily habit in both categories, and the day becomes a stable molecule.", "A stable molecule pays 15 points, and that day gets a gold halo on the strand."]},
+  {"title": "Stable weeks and shields", "target": "#side .week", "at": [0.0, 7.55, 15.73, 24.18, 30.04, 35.52, 47.6, 54.43], "lines": ["Points start out loose. Loose points can be lost to a clawback, which comes up in a moment.", "A solid day has at least 4 check-ins. A week with 5 solid days closes stable.", "When a stable week closes, all of its loose points bond for good. Bonded points can never be taken back.", "The line under the strand shows this. Solid purple is bonded. Dashed is still loose.", "A stable week also earns a shield. You can hold up to 3.", "If you miss a whole day, a shield is spent automatically, and your chain survives. That day shows as a pale blue hexagon.", "If you miss a day with no shield left, it becomes a gap, and the chain starts over.", "A gap never costs points. Nothing in Strand decays on its own while you're away."]},
+  {"title": "Genes", "target": "#geneCard, #side .card:last-child", "at": [0.0, 4.0, 13.44, 18.41, 31.88], "lines": ["Every stable week also earns a gene.", "When one is waiting, a gold chip appears on the strand, and three genes are offered at the top of the side panel.", "Choose one. It is permanent, and it works from that day forward.", "Genes can add a shield slot, make repairs earn back more, raise bonus odds for health or spiritual habits, or make bonds and stable molecules pay more.", "Most genes can be taken more than once, up to a limit. Over the months, your genome becomes your own build."]},
+  {"title": "Negatives and repair", "target": ".atom.neg", "at": [0.0, 8.82, 14.49, 26.08, 34.6, 40.8, 50.73, 59.65, 68.84], "lines": ["Alcohol is tracked as a negative. Tap it only when it happens, set the number of drinks, and log it.", "Logging honestly always pays 3 points. The honesty never costs you.", "The drinks do cost. Each one claws back up to 12 points, taken from your newest loose points first. Bonded points are never touched.", "There are caps. No single day can lose more than 40 points, and no seven days in a row more than 90.", "On the strand, that base pair shows as damaged, with a break in the backbone.", "Then the repair bay opens. It follows how a cell repairs its DNA: recognize the damage, cut it out and fill it, then seal it.", "Recognizing is already done, because you logged it. Pick one recovery action, do it, and seal the repair.", "That earns back 60 percent of what was clawed, and the pair is marked repaired for good, with a gold seam.", "The repair stays open until the end of the day you logged it."]},
+  {"title": "Stages and the vault", "target": "#stagebox", "at": [0.0, 12.92, 20.75, 23.2, 29.15, 40.09], "lines": ["Your stage is at the top left. Points carry you through three phases: strand, then cell, then organism, with several stages inside each.", "The bar shows how close the next stage is. Stages are spaced so the next one is always in sight.", "Stages never go backward.", "Small stage changes flash a banner. The big ones take the whole screen.", "Five big stages each earn a film of your strand exactly as it stood that day. Eight milestone compounds each earn a collectible card.", "Films and cards live in the Vault. When a slot unlocks, copy its media request and give it to Claude, then drop the file you get back into the media folder."]},
+  {"title": "Your data", "target": "#navData", "at": [0.0, 6.25, 13.32, 20.1, 28.75, 36.49, 46.61, 54.08], "lines": ["Your log is saved to your own private GitHub repository.", "Open Data, paste your access token, and connect. Do this once on each device you use.", "After that, every change is saved automatically, and each save is kept as its own version.", "If another device saved first, Strand asks which version to keep. It never overwrites one silently.", "Export a backup now and then. Importing it puts everything back, the points ledger included.", "You can also merge entries you dictated on your phone. The format is in the Data panel, and an entry is never imported twice.", "Every number in this walkthrough is a default. You can change any of them in Settings.", "That's Strand. Go tap your first atom."]}
+];
 var Guide = {
-  on: false, ch: 0, line: 0, playing: false, token: 0, timer: null, chapters: [], rate: 1, voiceName: '', listOpen: false,
-  syn: window.speechSynthesis || null,
-  script: function () {
-    var s = S(), H = st.habits, w = function (id) { return H[id] ? H[id].weight : 0; };
-    var th = s.thinning, t0 = th[0], tN = th[th.length - 1], bz = s.bonuses;
-    var bName = function (i, fb) { return bz[i] ? bz[i].name.toLowerCase() : fb; }, bMul = function (i) { return bz[i] ? bz[i].mult : 1; };
-    var times = function (m) { return m === 1 ? 'the habit\'s weight again' : m === 2 ? 'twice its weight' : m + ' times its weight'; };
-    var rt = st.data.routines.map(function (r) { return 'The ' + r.name.toLowerCase() + ' is ' + r.habits.map(function (id) { return H[id] ? H[id].short.toLowerCase() : id; }).join(', ').replace(/, ([^,]*)$/, ' and $1') + '.'; });
-    var gym = H.gym || { weeklyTarget: 2 }, alc = H.alcohol || { weight: 12 };
-    var pct = function (x) { return Math.round(x * 100); };
-    return [
-      { title: 'Welcome', target: '#field', lines: [
-        'Welcome to Strand.', 'Strand turns your habits into a growing strand of D N A.',
-        'Every habit you complete adds a base pair, and every day adds a stretch of strand.',
-        'Nothing on the strand is decoration. Its length, its gaps and its repairs all come straight from your log.',
-        'Drag the strand to move through time, and scroll on it to zoom. Hover a base pair to see what it was.',
-        'This walkthrough has nine short chapters. You can jump to any of them from the list.'] },
-      { title: 'Checking in', target: '#left .atoms', lines: [
-        'Your daily check-in lives below the strand. Each habit is an atom.',
-        'Tap an atom once when the habit is done.',
-        'It lights up, you hear a tone, the points float up, and a new base pair flies onto the strand.',
-        'Health atoms sit on one side of the helix, and spiritual atoms on the other.',
-        'Tapped the wrong one? Tap it again. The label changes to, tap again to undo, and a second tap removes it.',
-        'Forgot a day? Use the arrows beside the date to step back. You can check in up to ' + s.backfillDays + ' days back.',
-        'Weekly habits show a ring that fills toward the week\'s target. The gym aims for ' + (gym.weeklyTarget || 2) + ' a week, and extra sessions still pay.',
-        'A full day of check-ins takes well under a minute.'] },
-      { title: 'Points and bonuses', target: '.tally', lines: [
-        'Each habit pays points by weight. A gym session pays ' + w('gym') + '. Vitamins pay ' + w('vitamins') + '. You can change any weight in Settings.',
-        'Now and then, a check-in pays a surprise bonus on top.',
-        'A ' + bName(0, 'crit') + ' adds ' + times(bMul(0)) + '. A ' + bName(1, 'vesicle') + ' adds ' + times(bMul(1)) + '. A ' + bName(2, 'rare isotope') + ' adds ' + times(bMul(2)) + '.',
-        'You can\'t predict which tap will pay. That is on purpose.',
-        'As a habit\'s streak grows, its base pay thins, down to ' + pct(tN.basePct) + ' percent after ' + tN.minStreak + ' days in a row.',
-        'At the same time its bonus odds rise, from ' + pct(t0.bonusChance) + ' percent to ' + pct(tN.bonusChance) + ' percent. A long streak trades steady pay for bigger surprises.'] },
-      { title: 'Bonds and stable molecules', target: '#molBox', lines: [
-        'The molecule on the right shows today\'s daily atoms.',
-        'Finish every habit in a routine on the same day, and those atoms bond.'].concat(rt, [
-        'Each bond pays ' + st.D.fx.bond + ' points.',
-        'Finish every daily habit in both categories, and the day becomes a stable molecule.',
-        'A stable molecule pays ' + st.D.fx.molecule + ' points, and that day gets a gold halo on the strand.']) },
-      { title: 'Stable weeks and shields', target: '#side .week', lines: [
-        'Points start out loose. Loose points can be lost to a clawback, which comes up in a moment.',
-        'A solid day has at least ' + s.stableWeek.solidDayMinCheckins + ' check-ins. A week with ' + s.stableWeek.minSolidDays + ' solid days closes stable.',
-        'When a stable week closes, all of its loose points bond for good. Bonded points can never be taken back.',
-        'The line under the strand shows this. Solid purple is bonded. Dashed is still loose.',
-        'A stable week also earns a shield. You can hold up to ' + st.D.shieldsMax + '.',
-        'If you miss a whole day, a shield is spent automatically, and your chain survives. That day shows as a pale blue hexagon.',
-        'If you miss a day with no shield left, it becomes a gap, and the chain starts over.',
-        'A gap never costs points. Nothing in Strand decays on its own while you\'re away.'] },
-      { title: 'Genes', target: '#geneCard, #side .card:last-child', lines: [
-        'Every stable week also earns a gene.',
-        'When one is waiting, a gold chip appears on the strand, and three genes are offered at the top of the side panel.',
-        'Choose one. It is permanent, and it works from that day forward.',
-        'Genes can add a shield slot, make repairs earn back more, raise bonus odds for health or spiritual habits, or make bonds and stable molecules pay more.',
-        'Most genes can be taken more than once, up to a limit. Over the months, your genome becomes your own build.'] },
-      { title: 'Negatives and repair', target: '.atom.neg', lines: [
-        'Alcohol is tracked as a negative. Tap it only when it happens, set the number of drinks, and log it.',
-        'Logging honestly always pays ' + s.points.integrity + ' points. The honesty never costs you.',
-        'The drinks do cost. Each one claws back up to ' + alc.weight + ' points, taken from your newest loose points first. Bonded points are never touched.',
-        'There are caps. No single day can lose more than ' + s.clawback.dayCap + ' points, and no seven days in a row more than ' + s.clawback.weekCap + '.',
-        'On the strand, that base pair shows as damaged, with a break in the backbone.',
-        'Then the repair bay opens. It follows how a cell repairs its D N A: recognize the damage, cut it out and fill it, then seal it.',
-        'Recognizing is already done, because you logged it. Pick one recovery action, do it, and seal the repair.',
-        'That earns back ' + pct(st.D.fx.repairRate) + ' percent of what was clawed, and the pair is marked repaired for good, with a gold seam.',
-        'The repair stays open until the end of the day you logged it.'] },
-      { title: 'Stages and the vault', target: '#stagebox', lines: [
-        'Your stage is at the top left. Points carry you through three phases: strand, then cell, then organism, with several stages inside each.',
-        'The bar shows how close the next stage is. Stages are spaced so the next one is always in sight.',
-        'Stages never go backward.',
-        'Small stage changes flash a banner. The big ones take the whole screen.',
-        'Five big stages each earn a film of your strand exactly as it stood that day. Eight milestone compounds each earn a collectible card.',
-        'Films and cards live in the Vault. When a slot unlocks, copy its media request and give it to Claude, then drop the file you get back into the media folder.'] },
-      { title: 'Your data', target: '#navData', lines: [
-        'Open Data and link your Strand folder once. After that, every change is saved to strand dash data dot jason in that folder.',
-        'The browser asks for permission again on each visit. When it does, click reconnect.',
-        'Export a backup now and then. Importing it puts everything back, the points ledger included.',
-        'You can also merge entries you dictated on your phone. The format is in the Data panel, and an entry is never imported twice.',
-        'Every number you heard here comes from Settings, and this walkthrough reads them live, so it stays accurate when you change them.',
-        'That\'s Strand. Go tap your first atom.'] }
-    ];
+  on: false, ch: 0, line: 0, playing: false, token: 0, timer: null, chapters: GUIDE_CHAPTERS, rate: 1, listOpen: false, audio: null, failed: false,
+  src: function (i) { return MEDIA_DIR + '/guide-' + (i < 9 ? '0' : '') + (i + 1) + '.mp3'; },
+  el: function () {
+    if (Guide.audio) return Guide.audio;
+    var a = Guide.audio = new Audio(); a.preload = 'auto';
+    a.addEventListener('timeupdate', function () {
+      var c = Guide.chapters[Guide.ch], t = a.currentTime, k = 0;
+      while (k + 1 < c.at.length && t >= c.at[k + 1]) k++;
+      if (k !== Guide.line) { Guide.line = k; Guide.render(); }
+    });
+    a.addEventListener('ended', function () {
+      if (!Guide.playing) return;
+      if (Guide.ch >= Guide.chapters.length - 1) return Guide.finish();
+      var tk = Guide.token; Guide.timer = setTimeout(function () { if (tk === Guide.token) { Guide.ch++; Guide.line = 0; Guide.say(); } }, 700);
+    });
+    a.addEventListener('error', function () { if (Guide.playing && a.getAttribute('src')) { Guide.failed = true; Guide.say(); } });
+    return a;
   },
-  voices: function () {
-    if (!Guide.syn) return [];
-    var v = Guide.syn.getVoices().filter(function (x) { return /^en/i.test(x.lang); });
-    var score = function (x) { var n = x.name; return (/natural/i.test(n) ? 40 : 0) + (/online/i.test(n) ? 10 : 0) + (/aria|jenny|guy|andrew|emma|brian|ava/i.test(n) ? 8 : 0) + (/google/i.test(n) ? 6 : 0) + (/en-us/i.test(x.lang) ? 3 : 0); };
-    return v.sort(function (a, b) { return score(b) - score(a); });
-  },
-  voice: function () { var vs = Guide.voices(); return vs.find(function (x) { return x.name === Guide.voiceName; }) || vs[0] || null; },
   open: function () {
-    try { Guide.rate = +localStorage.getItem('strand.guide.rate') || 1; Guide.voiceName = localStorage.getItem('strand.guide.voice') || ''; } catch (e) {}
-    closeDrawer(); Guide.on = true; Guide.chapters = Guide.script(); Guide.ch = 0; Guide.line = 0;
+    try { Guide.rate = +localStorage.getItem('strand.guide.rate') || 1; } catch (e) {}
+    closeDrawer(); Guide.on = true; Guide.ch = 0; Guide.line = 0; Guide.failed = false; Guide.seek = true;
     $('#guide').classList.add('on'); Guide.render(); Guide.play();
   },
   close: function () { Guide.stop(); Guide.on = false; $('#guide').classList.remove('on'); $('#spot').classList.remove('on'); },
-  stop: function () { Guide.token++; clearTimeout(Guide.timer); if (Guide.syn) Guide.syn.cancel(); Guide.playing = false; },
-  play: function () {
-    Guide.stop(); Guide.playing = true; Guide.render(); Guide.say();
-  },
+  stop: function () { Guide.token++; clearTimeout(Guide.timer); if (Guide.audio) Guide.audio.pause(); Guide.playing = false; },
+  play: function () { Guide.stop(); Guide.playing = true; Guide.render(); Guide.say(); },
   say: function () {
     var c = Guide.chapters[Guide.ch]; if (!c) return Guide.finish();
-    if (Guide.line >= c.lines.length) {
-      if (Guide.ch >= Guide.chapters.length - 1) return Guide.finish();
-      Guide.ch++; Guide.line = 0; Guide.render();
-      var tk0 = Guide.token; Guide.timer = setTimeout(function () { if (tk0 === Guide.token) Guide.say(); }, 700); return;
-    }
     Guide.render();
-    var text = c.lines[Guide.line], tk = Guide.token, next = function () { if (tk !== Guide.token) return; Guide.line++; Guide.timer = setTimeout(function () { if (tk === Guide.token) Guide.say(); }, 260); };
-    var v = Guide.voice();
-    if (!Guide.syn || !v) { Guide.timer = setTimeout(next, Math.max(2200, text.split(' ').length * 380 / Guide.rate)); return; }   // captions only
-    var u = new SpeechSynthesisUtterance(text.replace(/\bD N A\b/g, 'D.N.A.').replace('strand dash data dot jason', 'strand-data dot jason'));
-    u.voice = v; u.lang = v.lang; u.rate = Guide.rate; u.pitch = 1;
-    u.onend = next; u.onerror = function (e) { if (e.error !== 'interrupted' && e.error !== 'canceled') next(); };
-    Guide.syn.speak(u);
+    if (Guide.failed) return Guide.captions();   // file missing or offline: captions only
+    var a = Guide.el(), want = Guide.src(Guide.ch);
+    var seek = Guide.seek; Guide.seek = false;
+    if (a.getAttribute('src') !== want) { a.setAttribute('src', want); seek = Guide.line > 0; }
+    a.playbackRate = Guide.rate;
+    var go = function () { if (seek) try { a.currentTime = c.at[Guide.line] || 0; } catch (e) {} var p = a.play(); if (p && p.catch) p.catch(function (e) { if (e && e.name === 'NotAllowedError') { Guide.playing = false; Guide.render(); } }); };
+    if (a.readyState >= 1) go(); else a.addEventListener('loadedmetadata', go, { once: true });
+  },
+  captions: function () {
+    var c = Guide.chapters[Guide.ch], tk = Guide.token, text = c.lines[Guide.line];
+    Guide.timer = setTimeout(function () {
+      if (tk !== Guide.token) return;
+      if (Guide.line + 1 < c.lines.length) Guide.line++;
+      else if (Guide.ch < Guide.chapters.length - 1) { Guide.ch++; Guide.line = 0; }
+      else return Guide.finish();
+      Guide.say();
+    }, Math.max(2200, text.split(' ').length * 380 / Guide.rate));
   },
   pause: function () { Guide.stop(); Guide.render(); },
   finish: function () { Guide.stop(); Guide.ch = Guide.chapters.length - 1; Guide.line = Guide.chapters[Guide.ch].lines.length - 1; Guide.render(true); },
-  go: function (i) { Guide.ch = clamp(i, 0, Guide.chapters.length - 1); Guide.line = 0; Guide.listOpen = false; Guide.play(); },
+  go: function (i) { Guide.ch = clamp(i, 0, Guide.chapters.length - 1); Guide.line = 0; Guide.listOpen = false; Guide.seek = true; Guide.play(); },
   render: function (done) {
     var g = $('#guide'), c = Guide.chapters[Guide.ch], n = Guide.chapters.length; if (!c) return;
-    var vs = Guide.voices(), cur = Guide.voice();
     $('#gChap').textContent = 'Chapter ' + (Guide.ch + 1) + ' of ' + n + ': ' + c.title;
     $('#gCap').textContent = done ? 'End of the walkthrough.' : c.lines[Math.min(Guide.line, c.lines.length - 1)];
     $('#gPlay').innerHTML = Guide.playing ? '<svg viewBox="0 0 20 20"><rect x="5" y="4" width="3.4" height="12" rx="1"/><rect x="11.6" y="4" width="3.4" height="12" rx="1"/></svg>' : '<svg viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z"/></svg>';
@@ -2560,9 +2505,8 @@ var Guide = {
     $('#gBar').innerHTML = Guide.chapters.map(function (x, i) { var f = i < Guide.ch ? 1 : i > Guide.ch ? 0 : (Guide.line + (done ? 1 : 0)) / x.lines.length; return '<button data-g="go" data-i="' + i + '" title="' + esc(x.title) + '"><i style="width:' + (f * 100) + '%"></i></button>'; }).join('');
     $('#gList').hidden = !Guide.listOpen;
     $('#gList').innerHTML = Guide.chapters.map(function (x, i) { return '<button data-g="go" data-i="' + i + '" aria-current="' + (i === Guide.ch) + '"><span>' + (i + 1) + '</span>' + esc(x.title) + '</button>'; }).join('');
-    $('#gVoice').innerHTML = vs.length ? vs.map(function (v) { return '<option' + (cur && v.name === cur.name ? ' selected' : '') + '>' + esc(v.name) + '</option>'; }).join('') : '<option>No voice found: captions only</option>';
     $('#gRate').value = String(Guide.rate);
-    g.classList.toggle('mute', !vs.length);
+    g.classList.toggle('mute', Guide.failed);
     Guide.spot(c);
   },
   spot: function (c) {
@@ -2592,10 +2536,7 @@ var Guide = {
       else if (k === 'list') { Guide.listOpen = !Guide.listOpen; Guide.render(); }
       else if (k === 'close') Guide.close();
     });
-    $('#gVoice').addEventListener('change', function () { Guide.voiceName = this.value; try { localStorage.setItem('strand.guide.voice', this.value); } catch (e) {} if (Guide.playing) Guide.play(); });
-    $('#gRate').addEventListener('change', function () { Guide.rate = +this.value; try { localStorage.setItem('strand.guide.rate', this.value); } catch (e) {} if (Guide.playing) Guide.play(); });
-    if (Guide.syn) Guide.syn.onvoiceschanged = function () { if (Guide.on) Guide.render(); };
-    window.addEventListener('beforeunload', function () { if (Guide.syn) Guide.syn.cancel(); });
+    $('#gRate').addEventListener('change', function () { Guide.rate = +this.value; try { localStorage.setItem('strand.guide.rate', this.value); } catch (e) {} if (Guide.audio) Guide.audio.playbackRate = Guide.rate; });
     requestAnimationFrame(Guide.track);
   }
 };

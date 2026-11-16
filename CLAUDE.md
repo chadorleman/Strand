@@ -22,7 +22,7 @@ Live at https://chadorleman.github.io/Strand/ (GitHub Pages serves `index.html` 
 | `test/engine.test.js` | Rule checks (`node test/engine.test.js`). Must stay at 0 failed. |
 | `test/gh_flow.py` | GitHub sync against a mocked GitHub API (Playwright + Chrome). |
 | `video/` | Film pipeline: `film.html` + `make_film.py` render a milestone film from a media request; `make_audio.py` builds its soundtrack. |
-| `media/` | Milestone art served beside the page (`stage-<id>.mp4`, `compound-<id>.png`). |
+| `media/` | Milestone art served beside the page (`stage-<id>.mp4`, `compound-<id>.png`) and the walkthrough narration (`guide-01.mp3` to `guide-09.mp3`). |
 | `examples/` | Example entry-import file. |
 
 ## Working on it
@@ -53,7 +53,7 @@ Keep it one self-contained file: no CDN, no framework, no build tooling beyond `
 
 - Stages never demote. Small stage changes show a non-blocking banner; phase changes and film stages take the full screen.
 - **Genes:** each week that closes stable earns one permanent pick from three offered traits. Offers are seeded by the week's date. A gene works only from the day it is picked, so it never rewrites the past. No gene may soften the alcohol clawback (it would pay around the behavior, not through it).
-- **Walkthrough:** spoken with the browser's own voices (Web Speech API). The script is generated from live settings, so its numbers stay true. Update the script in `Guide.script()` when rules change.
+- **Walkthrough:** always plays recorded MP3s (`media/guide-01.mp3` to `guide-09.mp3`, voiced by Muse from `video/guide-script.md`). Captions and line start times live in `GUIDE_CHAPTERS` in `src/app.js`. The audio states the default settings and does not follow live Settings (owner's choice). When a rule or default changes: edit `video/guide-script.md`, have the chapter re-recorded, then update its lines and `at` times in `GUIDE_CHAPTERS`. If a file fails to load, captions run on a timer.
 - **Storage:** primary is GitHub sync to a separate **private** repo (default `strand-data/strand-data.json`) via the Contents API with a fine-grained token. The token lives only in that browser's localStorage; never put it in the page, the data file, or this repo. Each save is a commit. A sha mismatch means another device saved: ask which version to keep, never overwrite silently. Folder linking (File System Access API) is an optional extra on desktop Chrome/Edge.
 - npoint was rejected: public read, and API writes need a premium account.
 
