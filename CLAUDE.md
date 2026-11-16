@@ -18,7 +18,8 @@ Live at https://chadorleman.github.io/Strand/ (GitHub Pages serves `index.html` 
 | `src/helix.js` | Canvas renderer for the strand. Shared by the app and the film renderer. |
 | `src/app.js` | Screen, sound, storage (browser, linked folder, GitHub sync), drawer panels, walkthrough. |
 | `src/style.css`, `src/body.html` | Styles and markup. |
-| `build.py` | Inlines `src/` into `index.html` with the header comment. Python 3 standard library only. |
+| `build.py` | Inlines `src/` into `index.html` with the header comment, and stamps the version. Python 3 standard library only. |
+| `VERSION`, `version.json` | Version `major.build`. `build.py` raises `build` by one whenever `src/` changes (a rebuild of unchanged source keeps it). Raise `major` in `VERSION` by hand for big releases and set `build` to 0. `version.json` is what the live page is checked against. |
 | `test/engine.test.js` | Rule checks (`node test/engine.test.js`). Must stay at 0 failed. |
 | `test/gh_flow.py` | GitHub sync against a mocked GitHub API (Playwright + Chrome). |
 | `video/` | Film pipeline: `film.html` + `make_film.py` render a milestone film from a media request; `make_audio.py` builds its soundtrack. |
@@ -31,7 +32,7 @@ Live at https://chadorleman.github.io/Strand/ (GitHub Pages serves `index.html` 
 2. `python3 build.py` to regenerate `index.html`.
 3. `node test/engine.test.js` (and `python3 test/gh_flow.py` when storage or sync code changes).
 4. Look at the page: screenshot it at desktop (1440×900, 1366×768) and phone (390×844) sizes. He uses it on an iPhone home-screen app and a Windows PC.
-5. Commit `src/` changes and the rebuilt `index.html` together, **directly to `main`** (no branches or pull requests; the owner chose this). Pages publishes within a minute or two.
+5. Commit `src/` changes, the rebuilt `index.html`, `VERSION` and `version.json` together, **directly to `main`** (no branches or pull requests; the owner chose this). Pages publishes within a minute or two.
 
 Keep it one self-contained file: no CDN, no framework, no build tooling beyond `build.py`.
 
@@ -54,6 +55,7 @@ Keep it one self-contained file: no CDN, no framework, no build tooling beyond `
 - Stages never demote. Small stage changes show a non-blocking banner; phase changes and film stages take the full screen.
 - **Genes:** each week that closes stable earns one permanent pick from three offered traits. Offers are seeded by the week's date. A gene works only from the day it is picked, so it never rewrites the past. No gene may soften the alcohol clawback (it would pay around the behavior, not through it).
 - **Walkthrough:** always plays recorded MP3s (`media/guide-01.mp3` to `guide-09.mp3`, voiced by Muse from `video/guide-script.md`). Captions and line start times live in `GUIDE_CHAPTERS` in `src/app.js`. The audio states the default settings and does not follow live Settings (owner's choice). When a rule or default changes: edit `video/guide-script.md`, have the chapter re-recorded, then update its lines and `at` times in `GUIDE_CHAPTERS`. If a file fails to load, captions run on a timer.
+- **Version:** shown under the Strand name in the top bar and at the foot of the Data panel. On open, and each time the app returns to the front, it fetches `version.json` uncached; if the live build is newer it shows a sticky "Reload" toast that reloads with a cache-busting address. Skipped offline and on `file:`.
 - **Storage:** primary is GitHub sync to a separate **private** repo (default `strand-data/strand-data.json`) via the Contents API with a fine-grained token. The token lives only in that browser's localStorage; never put it in the page, the data file, or this repo. Each save is a commit. A sha mismatch means another device saved: ask which version to keep, never overwrite silently. Folder linking (File System Access API) is an optional extra on desktop Chrome/Edge.
 - npoint was rejected: public read, and API writes need a premium account.
 

@@ -36,6 +36,9 @@ h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;letter-spacing:.01e
 .hud{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:12px 22px 6px;position:relative;z-index:3;min-width:0}
 .brand{display:flex;align-items:center;gap:9px;font:600 21px/1 var(--display);letter-spacing:.02em}
 .brand svg{width:26px;height:26px}
+.bname{display:flex;flex-direction:column;gap:3px}
+.bname small{font:500 10px/1 var(--mono, ui-monospace, monospace);letter-spacing:.06em;opacity:.55}
+.verline{margin-top:18px;font-size:12px;opacity:.6}
 .stagebox{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;align-items:center;text-align:left;padding:4px 6px;border-radius:12px}
 .stagebox:hover{background:rgba(255,255,255,.04)}
 .emblem{grid-row:1/3;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,rgba(88,239,201,.28),rgba(88,239,201,.04) 70%);border:1px solid var(--line2)}

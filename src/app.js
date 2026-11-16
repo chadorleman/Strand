@@ -839,7 +839,7 @@ function dataHtml() {
   h += '<h3>Notes: the entry import format</h3><pre>{\n  "strandImport": 1,\n  "entries": [\n    { "importId": "2026-11-15-a", "date": "2026-11-15", "habit": "water" },\n    { "importId": "2026-11-15-b", "date": "2026-11-15", "habit": "gym", "note": "legs" },\n    { "importId": "2026-11-14-c", "date": "2026-11-14", "habit": "alcohol", "amount": 2 }\n  ]\n}</pre><ul><li><b>importId</b>: any text, unique per entry. Re-importing the same ID is skipped.</li><li><b>date</b>: YYYY-MM-DD, the day it happened. Not in the future.</li><li><b>habit</b>: one of ' + st.data.habits.map(function (x) { return '<code>' + esc(x.id) + '</code>'; }).join(', ') + '. The short name or symbol also works.</li><li><b>amount</b>: only for alcohol, the number of drinks. <b>note</b>: optional.</li><li>A bare list <code>[ {...}, {...} ]</code> or a single entry object is accepted too.</li><li>A habit already logged for that day is skipped, not doubled. Bonus rolls for imported entries happen at import time.</li></ul>';
   h += '<h3>Notes: the media format</h3><ul><li>Files live in a folder named <code>' + MEDIA_DIR + '</code> beside this page (inside your linked Strand folder).</li><li>File name = the milestone ID shown on the slot: <code>stage-protocell.mp4</code>, <code>compound-glycine.png</code>.</li><li>Films: .mp4 (H.264) or .webm. Cards: .png, .jpg or .webp.</li><li>The <b>media request</b> a slot copies is JSON with <code>milestone</code>, <code>deliver.saveAs</code>, <code>stats</code>, <code>habits</code> and <code>strand</code> (one object per day: date, state, and one slot per log entry marked pair, damaged or repaired).</li></ul>';
   h += '<h3>Notes: room for more modules</h3><p>Habits is one module. The data file keeps a <code>modules</code> block and every log entry and ledger row carries a <code>module</code> name, so a second module (calories and macros is reserved as <code>nutrition</code>) can write to the same file and the same points ledger without changing what is here.</p>';
-  return h;
+  return h + '<p class="verline">Strand ' + esc(VER.version) + (VER.date ? ' · built ' + esc(VER.date) : '') + '</p>';
 }
 function drawerAct(a, el) {
   var id = el.dataset.id, slot = id && st.data.media.find(function (m) { return m.id === id; });
@@ -1129,17 +1129,33 @@ function boot2(silent) {
   if (!silent) dayTurnNotices(prev);
   Media.scan();
 }
+
+/* ============================ build version ============================== */
+var VER = window.STRAND_VERSION || { version: 'dev', major: 0, build: 0, date: '' };
+var verChecked = 0, verTold = 0;
+function checkVersion(force) {
+  var now = Date.now(); if (!force && now - verChecked < 60000) return; verChecked = now;
+  if (!window.fetch || location.protocol === 'file:') return;
+  fetch('version.json?t=' + now, { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (v) {
+    if (!v || typeof v.build !== 'number') return;
+    var newer = v.major > VER.major || (v.major === VER.major && v.build > VER.build);
+    if (!newer || verTold === v.major * 100000 + v.build) return;
+    verTold = v.major * 100000 + v.build;
+    toast('<b>Version ' + esc(v.version) + ' is live.</b> You are on ' + esc(VER.version) + '.', 'gold', { sticky: true, action: { label: 'Reload', fn: function () { location.replace(location.pathname + '?v=' + v.version + '-' + Date.now()); } } });
+  }).catch(function () {});
+}
 function boot() {
+  var vt = $('#verTag'); if (vt) vt.textContent = 'v' + VER.version;
   cv = $('#helix'); ctx = cv.getContext('2d'); mini = $('#mini'); mctx = mini.getContext('2d');
   try { Sfx.on = localStorage.getItem('strand.sound') !== 'off'; } catch (e) {}
   $('#soundBtn').setAttribute('aria-pressed', Sfx.on); $('#soundBtn').title = Sfx.on ? 'Sound is on' : 'Sound is off';
   Store.init().then(GH.init).then(function () {
-    resize(); boot2(); Store.save(true); bindCanvas(); requestAnimationFrame(frame); GH.afterBoot();
+    resize(); boot2(); Store.save(true); bindCanvas(); requestAnimationFrame(frame); GH.afterBoot(); checkVersion(true);
     if (st.dirState === 'paused') toast('<b>Your data file needs one click.</b> The browser asks for permission once per visit.', '', { sticky: true, action: { label: 'Reconnect', fn: Store.reconnect } });
   });
   window.addEventListener('resize', function () { resize(); });
   window.addEventListener('focus', GH.check);
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') GH.check(); else if (GH.on() && GH.dirty() && GH.state === 'pending') GH.push(); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { GH.check(); checkVersion(); } else if (GH.on() && GH.dirty() && GH.state === 'pending') GH.push(); });
   window.addEventListener('online', function () { if (GH.on() && GH.dirty() && GH.state !== 'conflict') GH.push(); });
   $('#left').addEventListener('click', function (ev) { var b = ev.target.closest('[data-habit]'); if (b) return tapHabit(b.dataset.habit, b); var a = ev.target.closest('[data-act]'); if (a) act(a.dataset.act, a); });
   $('#side').addEventListener('click', function (ev) { var a = ev.target.closest('[data-act]'); if (a) act(a.dataset.act, a); });

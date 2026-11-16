@@ -11,6 +11,16 @@ Newest entry first. Each session adds one entry: what changed, why, what is unte
 - Idea raised but not started: the `nutrition` module (calories and macros, same data file and points ledger).
 - A leftover `add-source` branch exists on GitHub; it can be deleted from pull request #1.
 
+## 2026-11-15: version numbering
+
+**Changed:** builds are numbered `major.build` (first build `1.1`). `build.py` fingerprints `src/` and raises `build` only when the source changed, so rebuilding for a test does not use a number. It writes `VERSION` and `version.json` and puts the version in the page. The version shows under the Strand name (top bar) and at the foot of the Data panel with the build date. On open and on returning to the app, the page fetches `version.json` uncached; if the live build is newer, a sticky gold "Version X is live. Reload." toast appears and Reload reloads with a cache-busting address.
+
+**Use:** if the number on the phone matches the one in the last commit message or `VERSION`, the phone has the latest build. Raise `major` by hand in `VERSION` (and set `build` to 0) for big releases, such as challenges and drops.
+
+**Also:** weekly challenges and drops spec updated: stake cap is 50% of loose points.
+
+**Tested:** engine tests (60 passed); in Chrome at 390 px, the tag shows, the Data panel line shows, a newer `version.json` produces the toast and Reload navigates with `?v=`. **Untested:** the iPhone home-screen app itself (whether iOS reuses its saved page after Reload), and `window.location.replace` inside standalone mode.
+
 ## 2026-11-15: design for weekly challenges and bonus drops (no code)
 
 Brainstorm with the owner; nothing built. This is the spec for the build sessions. Every number below is a proposed default and belongs in `DEFAULT_SETTINGS`.
@@ -37,7 +47,7 @@ Brainstorm with the owner; nothing built. This is the spec for the build session
 - Candidate challenges: Weak link (lowest-rate daily habit over the last 4 weeks, 6 of 7 days); Double helix (both stacks bonded the same day, 4 times); Molecule run (3 stable molecules); Over target (gym 3 times); Early prep (midweek prep and personal study before the midweek meeting); Unbroken (no gaps, no shield spent).
 - **Win instantly** when the target is hit (full feedback, drop lands then). **Lose** at week close or when the target becomes unreachable. Backfill can only help (positives only), never turn a win into a loss. Undo of a check-in that completed a challenge reverts the win.
 - **Free:** small point reward and a standard drop.
-- **Staked:** stake taken from loose points only (never bonded), held in escrow. Cap: about 25% of loose points or a fixed ceiling, whichever is lower (kept to limit the risk, no longer needed against sheltering). Win: what is left of the escrow back plus a premium (around 1.5x what is left) and a drop with better odds of rarer types. Lose: the escrow is lost at week close.
+- **Staked:** stake taken from loose points only (never bonded), held in escrow. Cap: 50% of loose points (owner's choice; the cap only limits risk now that clawback can reach escrow). Win: what is left of the escrow back plus a premium (around 1.5x what is left) and a drop with better odds of rarer types. Lose: the escrow is lost at week close.
 - **Clawback and escrow:** escrow counts as loose points dated at opt-in, so the existing newest-first order takes the week's newer loose gains before it. The day cap and rolling-week cap still bound the total; escrow adds no extra loss beyond them. Clawback into escrow never fails the challenge (challenges ignore negatives); it only shrinks the payout. A repair re-earns into loose points, not back into escrow.
 
 ### Data
