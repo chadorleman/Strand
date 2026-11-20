@@ -1,0 +1,95 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}canvas{display:block}</style></head><body>
+<canvas id="c" width="1000" height="1400"></canvas>
+<script>/*HELIX*/</script>
+<script>
+/* Compound card (5:7). Draws only what the media request contains: the
+   milestone's name, formula, note and date, its stats, and the strand
+   exactly as it stood. The molecule drawing is the compound itself. */
+var REQ = /*REQ*/;
+var HX = window.StrandHelix, C = HX.C, rgba = HX.rgba;
+var W = 1000, H = 1400, cv = document.getElementById('c'), ctx = cv.getContext('2d');
+var layer = document.createElement('canvas'); layer.width = W; layer.height = H;
+var days = REQ.strand, habits = REQ.habits, routines = {}; REQ.routines.forEach(function (r) { routines[r.id] = r; });
+var M = REQ.milestone, S = REQ.stats, FONT = '"Inter Display", Inter, sans-serif';
+var MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function longDate(s) { var p = s.split('-'); return +p[2] + ' ' + MON[+p[1] - 1] + ' ' + p[0]; }
+function text(s, x, y, size, weight, col, align, alpha) {
+  ctx.save(); ctx.globalAlpha = alpha == null ? 1 : alpha; ctx.font = weight + ' ' + size + 'px ' + FONT; ctx.fillStyle = col; ctx.textAlign = align || 'left'; ctx.fillText(s, x, y); ctx.restore();
+}
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+/* formula with subscript digits */
+function formula(f, x, y, size, col) {
+  ctx.save(); ctx.fillStyle = col; var parts = f.match(/[A-Za-z]+|\d+|\s+/g) || [f], tw = 0;
+  parts.forEach(function (p) { ctx.font = (/^\d+$/.test(p) ? '500 ' + size * 0.62 : '500 ' + size) + 'px ' + FONT; tw += ctx.measureText(p).width; });
+  var cx = x - tw / 2; ctx.textAlign = 'left';
+  parts.forEach(function (p) { var sub = /^\d+$/.test(p); ctx.font = (sub ? '500 ' + size * 0.62 : '500 ' + size) + 'px ' + FONT; ctx.fillText(p, cx, y + (sub ? size * 0.22 : 0)); cx += ctx.measureText(p).width; });
+  ctx.restore();
+}
+function bg() {
+  ctx.fillStyle = '#04121a'; ctx.fillRect(0, 0, W, H);
+  var g = ctx.createRadialGradient(160, -80, 0, 160, -80, 1300); g.addColorStop(0, 'rgba(22,96,104,.6)'); g.addColorStop(1, 'rgba(22,96,104,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  g = ctx.createRadialGradient(960, 1480, 0, 960, 1480, 1200); g.addColorStop(0, 'rgba(58,36,120,.55)'); g.addColorStop(1, 'rgba(58,36,120,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+/* glycine, H2N-CH2-COOH, ball and stick */
+var GLY = {
+  atoms: [
+    { e: 'N', x: -205, y: 30 }, { e: 'C', x: -70, y: -40 }, { e: 'C', x: 70, y: 30 },
+    { e: 'O', x: 70, y: 185 }, { e: 'O', x: 205, y: -40 },
+    { e: 'H', x: -300, y: -40 }, { e: 'H', x: -225, y: 140 }, { e: 'H', x: -105, y: -150 }, { e: 'H', x: -15, y: -140 }, { e: 'H', x: 300, y: 25 }
+  ],
+  bonds: [[0, 1, 1], [1, 2, 1], [2, 3, 2], [2, 4, 1], [0, 5, 1], [0, 6, 1], [1, 7, 1], [1, 8, 1], [4, 9, 1]]
+};
+var EL = { C: { r: 34, col: C.ink }, N: { r: 34, col: C.frost }, O: { r: 34, col: C.amber }, H: { r: 20, col: [143, 178, 183] } };
+function molecule(cx, cy, s) {
+  var A = GLY.atoms.map(function (a) { return { e: a.e, x: cx + a.x * s, y: cy + a.y * s }; });
+  ctx.save();
+  var g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 380 * s); g.addColorStop(0, 'rgba(255,233,166,.13)'); g.addColorStop(1, 'rgba(255,233,166,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, 380 * s, 0, 6.2832); ctx.fill();
+  ctx.lineCap = 'round';
+  GLY.bonds.forEach(function (b) {
+    var p = A[b[0]], q = A[b[1]], dx = q.x - p.x, dy = q.y - p.y, l = Math.hypot(dx, dy), nx = -dy / l, ny = dx / l;
+    var offs = b[2] === 2 ? [-7 * s, 7 * s] : [0];
+    offs.forEach(function (o) { ctx.strokeStyle = 'rgba(230,243,241,.55)'; ctx.lineWidth = 6 * s; ctx.beginPath(); ctx.moveTo(p.x + nx * o, p.y + ny * o); ctx.lineTo(q.x + nx * o, q.y + ny * o); ctx.stroke(); });
+  });
+  A.forEach(function (a) {
+    var el = EL[a.e], r = el.r * s;
+    ctx.shadowColor = rgba(el.col, 0.7); ctx.shadowBlur = 26 * s;
+    var gg = ctx.createRadialGradient(a.x - r * 0.35, a.y - r * 0.4, r * 0.1, a.x, a.y, r);
+    gg.addColorStop(0, rgba(el.col, 1)); gg.addColorStop(1, rgba(el.col.map(function (v) { return Math.round(v * 0.45); }), 1));
+    ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(a.x, a.y, r, 0, 6.2832); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.font = '600 ' + Math.round((a.e === 'H' ? 19 : 30) * s) + 'px ' + FONT; ctx.fillStyle = '#04121a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.e, a.x, a.y + 1);
+  });
+  ctx.restore();
+}
+function strand(y0) {
+  var units = 0; days.forEach(function (d) { units += Math.max(1, d.slots.length); }); units += (days.length - 1) * 0.6;
+  var sw = 840 / units, L = HX.layout(days, { slotW: sw, dayGap: sw * 0.6 });
+  var lctx = layer.getContext('2d');
+  HX.draw(lctx, L, { W: W, H: H, dpr: 1, scrollX: (L.width - W) / 2, cy: y0, amp: 58, phase: 0.6, t: 0, labels: true, habits: habits, routines: routines, bondedThrough: S.bondedThrough, today: null, selected: null, motes: false, tip: false, dayNumbers: true, font: FONT, turn: 10.5 });
+  ctx.drawImage(layer, 0, 0);
+}
+function render() {
+  bg();
+  /* frame */
+  ctx.save(); rr(28, 28, W - 56, H - 56, 34); ctx.strokeStyle = 'rgba(255,233,166,.38)'; ctx.lineWidth = 2; ctx.stroke();
+  rr(40, 40, W - 80, H - 80, 26); ctx.strokeStyle = 'rgba(255,233,166,.12)'; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+  text('Strand', 84, 108, 26, '600', '#e6f3f1', 'left', 0.9);
+  text('Compound card', W - 84, 108, 22, '500', '#ffe9a6', 'right', 0.9);
+  if (REQ.sample) text('Sample data', W - 84, 140, 18, '500', '#ffdca0', 'right', 0.75);
+  molecule(W / 2, 400, 1);
+  text(M.name, W / 2, 720, 104, '700', '#e6f3f1', 'center');
+  if (M.formula) formula(M.formula, W / 2, 790, 40, '#8fb2b7');
+  text(M.note || '', W / 2, 856, 30, '500', '#ffe9a6', 'center');
+  text('Completed ' + longDate(M.reachedOn), W / 2, 900, 22, '400', '#8fb2b7', 'center');
+  /* the strand as it stood */
+  ctx.save(); ctx.strokeStyle = 'rgba(230,243,241,.12)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(84, 950); ctx.lineTo(W - 84, 950); ctx.stroke(); ctx.restore();
+  strand(1090);
+  /* stats */
+  var items = [[S.points.toLocaleString('en-US'), 'points', '#e6f3f1'], [S.days, S.days === 1 ? 'day' : 'days', '#e6f3f1'], [S.basePairs, 'base pairs', '#58efc9'], [S.stableDays, S.stableDays === 1 ? 'stable molecule' : 'stable molecules', '#ffe9a6'], [S.chain, '-day chain', '#e6f3f1']];
+  var colW = (W - 168) / items.length;
+  items.forEach(function (it, i) { var x = 84 + colW * (i + 0.5); text(String(it[0]), x, 1272, 46, '600', it[2], 'center'); text(it[1].replace(/^-/, ''), x, 1306, 18, '400', '#8fb2b7', 'center'); });
+  var foot = [S.shielded + (S.shielded === 1 ? ' shield spent' : ' shields spent'), S.gaps + (S.gaps === 1 ? ' gap' : ' gaps'), S.repaired + (S.repaired === 1 ? ' repair' : ' repairs')];
+  if (S.damaged) foot.push(S.damaged + ' still damaged');
+  text(foot.join('      '), W / 2, 1346, 18, '400', '#5e8188', 'center');
+}
+</script></body></html>

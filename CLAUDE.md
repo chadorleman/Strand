@@ -22,7 +22,7 @@ Live at https://chadorleman.github.io/Strand/ (GitHub Pages serves `index.html` 
 | `VERSION`, `version.json` | Version `major.build`. `build.py` raises `build` by one whenever `src/` changes (a rebuild of unchanged source keeps it). Raise `major` in `VERSION` by hand for big releases and set `build` to 0. `version.json` is what the live page is checked against. |
 | `test/engine.test.js` | Rule checks (`node test/engine.test.js`). Must stay at 0 failed. |
 | `test/gh_flow.py` | GitHub sync against a mocked GitHub API (Playwright + Chrome). |
-| `video/` | Film pipeline: `film.html` + `make_film.py` render a milestone film from a media request; `make_audio.py` builds its soundtrack. |
+| `video/` | Media pipeline: `film.html` + `make_film.py` render a milestone film from a media request; `make_audio.py` builds its soundtrack; `card.html` + `make_card.py` render a compound card. |
 | `media/` | Milestone art served beside the page (`stage-<id>.mp4`, `compound-<id>.png`) and the walkthrough narration (`guide-01.mp3` to `guide-09.mp3`). |
 | `examples/` | Example entry-import file. |
 | `spending.html` | The Spending page (personal spending tracker), linked from Strand's top bar. Its own self-contained file, not built by `build.py` and not versioned with Strand. Syncs `spending-data.json` beside the Strand data file using Strand's GitHub connection; archives months older than the last 13 to `spending-archive-<year>.json`. |
@@ -78,4 +78,4 @@ This repo and the site are public. No real personal data goes in it: sample data
 
 ## Media requests
 
-When a Vault slot unlocks, the user copies its media request JSON and gives it to Claude. Render films with `video/make_film.py` (H.264, 1280×720, 30 fps) and save as `media/<milestone id>.mp4`; cards as `media/<milestone id>.png`. Draw only what the request contains.
+When a Vault slot unlocks, the user copies its media request JSON and gives it to Claude. Render films with `video/make_film.py` (H.264, 1280×720, 30 fps) and save as `media/<milestone id>.mp4`; cards with `python3 video/make_card.py <request.json>` (`video/card.html`, 1000×1400 PNG for the 5:7 vault slot), saved to the request's `deliver.saveAs`. Keep a real (non-sample) request out of the repo; commit only the rendered file. Draw only what the request contains.
