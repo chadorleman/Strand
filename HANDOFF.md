@@ -28,6 +28,8 @@ Newest entry first. Each session adds one entry: what changed, why, what is unte
 
 **Changed:** new card renderer, `video/card.html` + `video/make_card.py` (Playwright + Chrome, same as the film). It draws a 1000×1400 PNG for the 5:7 vault slot: a ball-and-stick drawing of the compound, name, formula with subscripts, the milestone note and date, the strand exactly as in the request (`helix.js`, all days, labels on, no motes), and the request's stats. Rendered Glycine from the owner's real request (reached 2026-11-19: 5 days, 41 base pairs, 5 stable molecules, 457 points, no gaps, shields or repairs). The request JSON itself was not committed (real data).
 
+**Replaced the same day** at the owner's request with his own image (square, 1024 px), padded top and bottom to 1024×1434 so the 5:7 slot's cover crop keeps the sides. The rendered version is in git history (commit 42b0253). The renderer stays for future cards.
+
 **Tested:** rendered with no page errors; checked by eye. **Untested:** the card in the vault slot on the iPhone. Other compounds' formulas are words for Ligase, Histone and Telomerase ("repair enzyme" etc.); `card.html` only has the Glycine molecule drawing, so the next card needs its own molecule (or a fallback) before rendering.
 
 ## 2026-11-16: Spending page inside Strand, synced and archived (v1.6, spending.html)
