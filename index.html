@@ -667,7 +667,9 @@ var DEFAULT_HABITS = [
   { id: 'water',       name: 'Water, 32 oz',                      short: 'Water',       sym: 'Aq', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 5,  hue: 192 },
   { id: 'fasting',     name: 'Intermittent fasting window kept',  short: 'Fasting',     sym: 'Fa', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 10, hue: 172 },
   { id: 'pushups',     name: 'Push-ups',                          short: 'Push-ups',    sym: 'Pu', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 8,  hue: 152 },
-  { id: 'gym',         name: 'Gym session',                       short: 'Gym',         sym: 'Gy', category: 'health',    kind: 'positive', cadence: 'weekly', weeklyTarget: 2, beyondTarget: true, weight: 20, hue: 136 },
+  { id: 'gym',         name: 'Gym session',                       short: 'Gym',         sym: 'Gy', category: 'health',    kind: 'positive', cadence: 'weekly', weeklyTarget: 2, beyondTarget: true, weight: 7, hue: 136 },
+  { id: 'cardio',      name: 'Cardio session',                    short: 'Cardio',      sym: 'Ca', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 15, hue: 16, addedOn: '2026-11-22' },
+  { id: 'flexibility', name: 'Flexibility session',               short: 'Flexibility', sym: 'Fl', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 7,  hue: 88, addedOn: '2026-11-22' },
   { id: 'mindfulness', name: 'Daily mindfulness session',         short: 'Mindfulness', sym: 'Mi', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 8,  hue: 204 },
   { id: 'vitamins',    name: 'Vitamins and supplements',          short: 'Vitamins',    sym: 'Vi', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 3,  hue: 162 },
   { id: 'walk',        name: 'Walk',                              short: 'Walk',        sym: 'Wk', category: 'health',    kind: 'positive', cadence: 'daily',  weight: 5,  hue: 112, repairAction: 'walk', addedOn: '2026-11-16' },
@@ -688,7 +690,7 @@ var RETIRED_HABITS = [
   { id: 'midweek',     name: 'Midweek meeting prep',              short: 'Midweek prep', sym: 'Mw', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 15, hue: 54, archived: true, archivedOn: '2026-11-16' },
   { id: 'watchtower',  name: 'Watchtower study prep for Sunday',  short: 'Watchtower prep', sym: 'Wt', category: 'spiritual', kind: 'positive', cadence: 'weekly', weeklyTarget: 1, weight: 15, hue: 14, archived: true, archivedOn: '2026-11-16' }
 ];
-var HABIT_SET = 3, HABITS_V2_SINCE = '2026-11-16';
+var HABIT_SET = 4, HABITS_V2_SINCE = '2026-11-16';
 var ALCOHOL_ACTIONS = ['hydrate', 'walk', 'reflect', 'still'];
 
 /* The four domains. Habits can be added freely, each in one of these. */
@@ -773,6 +775,7 @@ function normalize(d) {
   if (d.meta && typeof d.meta === 'object' && !(d.meta.habitSet >= HABIT_SET) && Array.isArray(d.habits)) {
     var have = {}; d.habits.forEach(function (h) { have[h.id] = h; });
     DEFAULT_HABITS.forEach(function (h) { if (!have[h.id]) d.habits.push(clone(h)); });
+      var gymHabitSet4 = have['gym']; if (gymHabitSet4) gymHabitSet4.weight = 7;
     if (!(d.meta.habitSet >= 2)) ['midweek', 'watchtower'].forEach(function (id) { var h = have[id]; if (h && !h.archived) setArchived(h, true, HABITS_V2_SINCE); });
     // habit set 3: per-habit repair lists, and the new recovery actions in the pool
     if (have.alcohol && !have.alcohol.repairActions) have.alcohol.repairActions = ALCOHOL_ACTIONS.slice();
@@ -1108,6 +1111,7 @@ function checkIn(data, habitId, date, opt) {
   var chance = Math.min(S.bonusChanceCap, tier.bonusChance + (fx.bonus[h.category] || 0));
   var run = h.cadence === 'occasional' ? runBefore(data, habitId, date) : 0;
   var base = h.cadence === 'occasional' ? escalatedPay(S, h, run) : Math.max(1, Math.round(h.weight * tier.basePct));
+    if (habitId === 'gym' && opt && typeof opt.amount === 'number' && opt.amount >= 5) base += 5;
 
   var key = date + '|' + habitId, roll = data.rolls[key];
   if (!roll) { roll = [Math.round(rng() * 1e6) / 1e6, Math.round(rng() * 1e6) / 1e6]; data.rolls[key] = roll; }
